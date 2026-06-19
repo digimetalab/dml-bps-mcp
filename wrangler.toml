@@ -13,10 +13,10 @@ BPS_DEFAULT_DOMAIN = "0000"
 # KV namespace for BPS data caching
 [[kv_namespaces]]
 binding = "BPS_CACHE"
-id = "847d3de768034a58ba48bc6f637f70df"
+id = "acc8c251181f4589af9a104b4ef1b37c"
 
 # KV namespace for OAuth tokens (required by workers-oauth-provider)
 # Create with: wrangler kv namespace create OAUTH_KV
 [[kv_namespaces]]
 binding = "OAUTH_KV"
-id = "be20e5b126b44a35bb99c7f1c0961d14"
+id = "0d1f335bfbb349ee8f23d1fdcaf01b00"
