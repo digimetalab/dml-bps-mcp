@@ -8,9 +8,9 @@ import { formatErrorForUser } from "../utils/error.js";
 export function registerCsaTools(server: McpServer, client: BpsClient): void {
   server.tool(
     "list_csa_categories",
-    "Daftar kategori CSA (Classification of Statistical Activities) BPS. CSA adalah klasifikasi aktivitas statistik internasional.",
+    "List BPS CSA (Classification of Statistical Activities) categories. CSA is an international statistical activity classification.",
     {
-      domain: z.string().default("0000").describe("Kode domain BPS"),
+      domain: z.string().default("0000").describe("BPS domain code"),
     },
     async ({ domain }) => {
       try {
@@ -18,7 +18,7 @@ export function registerCsaTools(server: McpServer, client: BpsClient): void {
         const text = formatList(
           result,
           (c) => `**${c.title}** (ID: ${c.subcat_id})`,
-          "Daftar Kategori CSA"
+          "List of CSA Categories"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {
@@ -29,18 +29,18 @@ export function registerCsaTools(server: McpServer, client: BpsClient): void {
 
   server.tool(
     "list_csa_subjects",
-    "Daftar subjek CSA untuk domain dan kategori tertentu.",
+    "List CSA subjects for a given domain and category.",
     {
-      domain: z.string().default("0000").describe("Kode domain BPS"),
-      subcat: z.number().optional().describe("Filter berdasarkan ID kategori CSA"),
+      domain: z.string().default("0000").describe("BPS domain code"),
+      subcat: z.number().optional().describe("Filter by CSA category ID"),
     },
     async ({ domain, subcat }) => {
       try {
         const result = await client.listCsaSubjects(domain, subcat);
         const text = formatList(
           result.data,
-          (s) => `**${s.title}** (ID: ${s.sub_id}) — Kategori: ${s.subcat} — ${s.ntabel} tabel`,
-          "Daftar Subjek CSA"
+          (s) => `**${s.title}** (ID: ${s.sub_id}) — Category: ${s.subcat} — ${s.ntabel} tables`,
+          "List of CSA Subjects"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {
@@ -51,11 +51,11 @@ export function registerCsaTools(server: McpServer, client: BpsClient): void {
 
   server.tool(
     "list_csa_tables",
-    "Daftar tabel CSA untuk domain dan subjek tertentu.",
+    "List CSA tables for a given domain and subject.",
     {
-      domain: z.string().default("0000").describe("Kode domain BPS"),
-      subject: z.number().optional().describe("Filter berdasarkan ID subjek CSA"),
-      page: z.number().optional().describe("Nomor halaman"),
+      domain: z.string().default("0000").describe("BPS domain code"),
+      subject: z.number().optional().describe("Filter by CSA subject ID"),
+      page: z.number().optional().describe("Page number"),
     },
     async ({ domain, subject, page }) => {
       try {
@@ -64,11 +64,11 @@ export function registerCsaTools(server: McpServer, client: BpsClient): void {
           result.data,
           (t) => {
             let desc = `**${t.title}** (ID: ${t.id})`;
-            if (t.latest_period) desc += ` — Periode terbaru: ${t.latest_period}`;
+            if (t.latest_period) desc += ` — Latest period: ${t.latest_period}`;
             desc += ` — Update: ${t.last_update}`;
             return desc;
           },
-          "Daftar Tabel CSA"
+          "List of CSA Tables"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {
@@ -79,10 +79,10 @@ export function registerCsaTools(server: McpServer, client: BpsClient): void {
 
   server.tool(
     "get_csa_table",
-    "Ambil detail satu tabel CSA (termasuk konten tabel dalam format HTML).",
+    "Retrieve details of a single CSA table (includes table content in HTML format).",
     {
-      domain: z.string().describe("Kode domain BPS"),
-      id: z.string().describe("ID tabel CSA"),
+      domain: z.string().describe("BPS domain code"),
+      id: z.string().describe("CSA table ID"),
     },
     async ({ domain, id }) => {
       try {
@@ -91,7 +91,7 @@ export function registerCsaTools(server: McpServer, client: BpsClient): void {
           `## ${detail.title}`,
           "",
           `**ID:** ${detail.table_id}`,
-          `**Kategori CSA:** ${detail.subcsa}`,
+          `**CSA Category:** ${detail.subcsa}`,
           `**Update:** ${detail.updt_date}`,
           "",
           detail.table,

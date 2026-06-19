@@ -29,13 +29,13 @@ export async function handleAuthorize(
     };
 
     if (!apiKey || apiKey.length < 20) {
-      return renderLoginPage(authRequest, "API key tidak valid. Minimal 20 karakter.");
+      return renderLoginPage(authRequest, "Invalid API key. Minimum 20 characters.");
     }
 
     // Validate the API key against BPS API
     const valid = await validateBpsApiKey(apiKey);
     if (!valid) {
-      return renderLoginPage(authRequest, "API key BPS tidak valid. Pastikan key Anda benar.");
+      return renderLoginPage(authRequest, "Invalid BPS API key. Make sure your key is correct.");
     }
 
     try {
@@ -54,8 +54,8 @@ export async function handleAuthorize(
         (error.message.includes("limit") || error.message.includes("quota") || error.message.includes("429"));
       
       const errorMsg = isKvLimit
-        ? "Gagal melakukan otorisasi karena batas penyimpanan (Cloudflare Workers KV) harian telah terlampaui. Silakan hubungi administrator."
-        : `Gagal menyimpan otorisasi OAuth: ${error instanceof Error ? error.message : String(error)}`;
+        ? "Authorization failed because the daily storage limit (Cloudflare Workers KV) has been exceeded. Please contact the administrator."
+        : `Failed to save OAuth authorization: ${error instanceof Error ? error.message : String(error)}`;
       
       return renderLoginPage(authRequest, errorMsg);
     }
@@ -125,9 +125,9 @@ function renderLoginPage(authRequest: AuthRequest, error?: string): Response {
 <body>
   <div class="card">
     <h1>🇮🇩 BPS MCP Server</h1>
-    <p class="subtitle">Masukkan API key BPS Anda untuk mengotorisasi akses data statistik Indonesia.</p>
+    <p class="subtitle">Enter your BPS API key to authorize access to Indonesian statistical data.</p>
     
-    <div class="client">Mengotorisasi untuk: <strong>${authRequest.clientId}</strong></div>
+    <div class="client">Authorizing for: <strong>${authRequest.clientId}</strong></div>
     
     ${error ? `<div class="error">${error}</div>` : ""}
     
@@ -141,13 +141,13 @@ function renderLoginPage(authRequest: AuthRequest, error?: string): Response {
       ${authRequest.codeChallengeMethod ? `<input type="hidden" name="code_challenge_method" value="${authRequest.codeChallengeMethod}">` : ""}
       
       <label for="api_key">BPS API Key</label>
-      <input type="text" id="api_key" name="api_key" placeholder="Masukkan API key BPS Anda" required autocomplete="off">
+      <input type="text" id="api_key" name="api_key" placeholder="Enter your BPS API key" required autocomplete="off">
       
-      <button type="submit">Otorisasi</button>
+      <button type="submit">Authorize</button>
     </form>
     
     <div class="info">
-      Belum punya API key? <a href="https://webapi.bps.go.id" target="_blank">Daftar gratis di webapi.bps.go.id</a>
+      Don't have an API key? <a href="https://webapi.bps.go.id" target="_blank">Register for free at webapi.bps.go.id</a>
     </div>
   </div>
 </body>

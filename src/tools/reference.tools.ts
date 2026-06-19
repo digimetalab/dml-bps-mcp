@@ -7,22 +7,22 @@ import { formatErrorForUser } from "../utils/error.js";
 export function registerReferenceTools(server: McpServer, client: BpsClient): void {
   server.tool(
     "list_strategic_indicators",
-    `Daftar indikator strategis BPS — data headline terbaru (inflasi, pertumbuhan ekonomi, kemiskinan, pengangguran, IPM, ekspor/impor, dll).
+    `List BPS strategic indicators — latest headline data (inflation, economic growth, poverty, unemployment, HDI, exports/imports, etc.).
 
-Gunakan tool ini untuk mendapatkan ringkasan cepat indikator utama suatu wilayah. Data sudah termasuk nilai terbaru.
-Untuk data historis multi-tahun, gunakan find_data atau get_dynamic_data.`,
+Use this tool for a quick summary of key indicators for a region. Data includes the latest value.
+For multi-year historical data, use find_data or get_dynamic_data.`,
     {
-      domain: z.string().default("0000").describe("Kode domain BPS"),
-      var: z.number().optional().describe("Filter berdasarkan ID variabel"),
-      page: z.number().optional().describe("Nomor halaman"),
+      domain: z.string().default("0000").describe("BPS domain code"),
+      var: z.number().optional().describe("Filter by variable ID"),
+      page: z.number().optional().describe("Page number"),
     },
     async ({ domain, var: varId, page }) => {
       try {
         const result = await client.listStrategicIndicators(domain, varId, page);
         const text = formatList(
           result.data,
-          (ind) => `**${ind.title}** (ID: ${ind.indicator_id}) — Subjek: ${ind.sub_name}`,
-          "Daftar Indikator Strategis"
+          (ind) => `**${ind.title}** (ID: ${ind.indicator_id}) — Subject: ${ind.sub_name}`,
+          "List of Strategic Indicators"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {

@@ -7,15 +7,15 @@ import { formatErrorForUser } from "../utils/error.js";
 export function registerCensusTools(server: McpServer, client: BpsClient): void {
   server.tool(
     "list_census_events",
-    "Daftar kegiatan sensus BPS (Sensus Penduduk, Sensus Ekonomi, Sensus Pertanian, dll). Gunakan ID kegiatan untuk mengambil topik dan data sensus.",
+    "List BPS census activities (Population Census, Economic Census, Agricultural Census, etc.). Use the activity ID to fetch census topics and data.",
     {},
     async () => {
       try {
         const result = await client.listCensusEvents();
         const text = formatList(
           result,
-          (e) => `**${e.kegiatan}** (ID: ${e.id}) — Tahun: ${e.tahun_kegiatan}`,
-          "Daftar Kegiatan Sensus"
+          (e) => `**${e.kegiatan}** (ID: ${e.id}) — Year: ${e.tahun_kegiatan}`,
+          "List of Census Activities"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {
@@ -26,9 +26,9 @@ export function registerCensusTools(server: McpServer, client: BpsClient): void 
 
   server.tool(
     "list_census_topics",
-    "Daftar topik data yang tersedia untuk kegiatan sensus tertentu. Gunakan list_census_events untuk mendapatkan ID kegiatan.",
+    "List data topics available for a specific census activity. Use list_census_events to get the activity ID.",
     {
-      kegiatan: z.string().describe("ID kegiatan sensus (dari list_census_events)"),
+      kegiatan: z.string().describe("Census activity ID (from list_census_events)"),
     },
     async ({ kegiatan }) => {
       try {
@@ -36,7 +36,7 @@ export function registerCensusTools(server: McpServer, client: BpsClient): void 
         const text = formatList(
           result,
           (t) => `**${t.topik}** (ID: ${t.id}) — ${t.topic}`,
-          "Daftar Topik Sensus"
+          "List of Census Topics"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {

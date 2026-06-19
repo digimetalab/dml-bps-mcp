@@ -33,18 +33,18 @@ export function registerSmartTools(
   // ---------- find_variable ----------
   server.tool(
     "find_variable",
-    `Cari variabel data BPS berdasarkan kata kunci. Mencari di semua subjek yang relevan.
+    `Search BPS data variables by keyword. Searches across all relevant subjects.
 
-Contoh penggunaan:
-- find_variable(keyword="penduduk") → variabel terkait jumlah penduduk
-- find_variable(keyword="kemiskinan", domain="3500") → variabel kemiskinan di Jawa Timur
-- find_variable(keyword="inflasi") → variabel inflasi nasional
+Usage examples:
+- find_variable(keyword="penduduk") → variables related to population
+- find_variable(keyword="kemiskinan", domain="3500") → poverty variables in East Java
+- find_variable(keyword="inflasi") → national inflation variables
 
-Setelah mendapat var_id dari tool ini, gunakan get_dynamic_data untuk mengambil datanya.`,
+After getting a var_id from this tool, use get_dynamic_data to retrieve the data.`,
     {
-      keyword: z.string().describe("Kata kunci pencarian variabel (misal: penduduk, kemiskinan, inflasi, pengangguran, PDRB)"),
-      domain: z.string().default("0000").describe("Kode domain BPS. '0000'=nasional. Gunakan resolve_domain jika perlu."),
-      subject: z.number().optional().describe("Filter berdasarkan ID subjek (opsional, gunakan list_subjects untuk melihat daftar)"),
+      keyword: z.string().describe("Search keyword for variables (e.g. penduduk, kemiskinan, inflasi, pengangguran, PDRB)"),
+      domain: z.string().default("0000").describe("BPS domain code. '0000'=national. Use resolve_domain if needed."),
+      subject: z.number().optional().describe("Filter by subject ID (optional, use list_subjects to see available subjects)"),
     },
     async ({ keyword, domain, subject }) => {
       try {
@@ -84,30 +84,30 @@ Setelah mendapat var_id dari tool ini, gunakan get_dynamic_data untuk mengambil 
             content: [{
               type: "text",
               text: appendAttribution(
-                `Tidak ditemukan variabel yang cocok dengan "${keyword}" di domain ${domain}.\n\n` +
-                `**Tips:** Coba kata kunci yang lebih umum, atau gunakan list_subjects untuk melihat subjek yang tersedia, lalu filter dengan parameter subject.`
+                `No variables found matching "${keyword}" in domain ${domain}.\n\n` +
+                `**Tips:** Try a more general keyword, or use list_subjects to see available subjects, then filter with the subject parameter.`
               ),
             }],
           };
         }
 
         const lines: string[] = [
-          `## Variabel yang cocok dengan "${keyword}"`,
-          `**Domain:** ${domain} | **Ditemukan:** ${allVars.length} variabel`,
+          `## Variables matching "${keyword}"`,
+          `**Domain:** ${domain} | **Found:** ${allVars.length} variables`,
           "",
         ];
 
         for (const v of allVars.slice(0, 15)) {
-          lines.push(`- **${v.title}** (var_id: \`${v.var_id}\`) — Subjek: ${v.sub_name}${v.unit ? ` — Satuan: ${v.unit}` : ""}`);
+          lines.push(`- **${v.title}** (var_id: \`${v.var_id}\`) — Subject: ${v.sub_name}${v.unit ? ` — Unit: ${v.unit}` : ""}`);
           if (v.def) lines.push(`  _${v.def.substring(0, 150)}_`);
         }
 
         lines.push("");
-        lines.push("**Langkah selanjutnya:** Gunakan `get_dynamic_data(domain=\"" + domain + "\", var=\"<var_id>\")` untuk mengambil data.");
+        lines.push("**Next step:** Use `get_dynamic_data(domain=\"" + domain + "\", var=\"<var_id>\")` to retrieve data.");
 
         return { content: [{ type: "text", text: appendAttribution(lines.join("\n")) }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : "Gagal mencari variabel";
+        const msg = error instanceof Error ? error.message : "Failed to search variables";
         return { content: [{ type: "text", text: msg }], isError: true };
       }
     }
@@ -116,51 +116,51 @@ Setelah mendapat var_id dari tool ini, gunakan get_dynamic_data untuk mengambil 
   // ---------- find_data ----------
   server.tool(
     "find_data",
-    `Tool utama untuk AI: cari dan ambil data BPS dalam satu langkah.
-Secara otomatis: detect intent → resolve wilayah → cari variabel → ambil data.
+    `Primary AI tool: search and retrieve BPS data in one step.
+Automatically: detect intent → resolve region → find variable → fetch data.
 
-## Intent Detection (otomatis):
-- **Single value** (angka spesifik) → find_data
-- **Comparison** ("bandingkan X dan Y") → delegate ke compare_data
-- **Trend** ("tren 2019-2024") → delegate ke get_trend
-- **Ranking** ("10 provinsi termiskin") → delegate ke get_ranking
-- **Table/Breakdown** ("pemeluk agama per kecamatan") → find_data + static table fallback
-- **Publication** ("cari publikasi") → delegate ke search
+## Intent Detection (automatic):
+- **Single value** (specific number) → find_data
+- **Comparison** ("compare X and Y") → delegate to compare_data
+- **Trend** ("trend 2019-2024") → delegate to get_trend
+- **Ranking** ("top 10 poorest provinces") → delegate to get_ranking
+- **Table/Breakdown** ("religion by subdistrict") → find_data + static table fallback
+- **Publication** ("find publication") → delegate to search
 
-## Quick Reference — Topik Umum
+## Quick Reference — Common Topics
 
-| Topik | Metode Tercepat | var_id (nasional) |
+| Topic | Fastest Method | var_id (national) |
 |-------|----------------|-------------------|
-| Kemiskinan (jumlah) | find_data atau get_dynamic_data | 183, 185 |
-| Kemiskinan (%) | find_data atau get_dynamic_data | 184, 192 |
-| Pengangguran (TPT %) | get_dynamic_data(var="543") | 543 |
-| Pengangguran (jumlah) | get_dynamic_data(var="674") | 674 |
-| Inflasi (YoY) | list_strategic_indicators | - |
-| Pertumbuhan ekonomi | list_strategic_indicators | - |
-| IPM | list_strategic_indicators atau get_dynamic_data | 1706 |
-| Gini Rasio | get_dynamic_data(var="98") | 98 |
-| Jumlah Penduduk | get_dynamic_data(var="1452") | 1452 |
-| PDRB | list_strategic_indicators(domain=kode_prov) | - |
-| Ekspor/Impor | list_strategic_indicators atau get_trade_data | - |
-| Agama/Religi | find_data atau list_static_tables | - |
-| Publikasi/BRS | search atau allstats_search | - |
-| Teks dalam PDF | allstats_deep_search | - |
+| Poverty (count) | find_data or get_dynamic_data | 183, 185 |
+| Poverty (%) | find_data or get_dynamic_data | 184, 192 |
+| Unemployment (TPT %) | get_dynamic_data(var="543") | 543 |
+| Unemployment (count) | get_dynamic_data(var="674") | 674 |
+| Inflation (YoY) | list_strategic_indicators | - |
+| Economic growth | list_strategic_indicators | - |
+| HDI | list_strategic_indicators or get_dynamic_data | 1706 |
+| Gini Ratio | get_dynamic_data(var="98") | 98 |
+| Population | get_dynamic_data(var="1452") | 1452 |
+| GRDP | list_strategic_indicators(domain=province_code) | - |
+| Exports/Imports | list_strategic_indicators or get_trade_data | - |
+| Religion | find_data or list_static_tables | - |
+| Publications/BRS | search or allstats_search | - |
+| Text in PDF | allstats_deep_search | - |
 
-## Strategi:
-1. Data angka terbaru (headline) → list_strategic_indicators
-2. Data angka historis/spesifik → find_data atau get_dynamic_data + var_id di atas
-3. Cari publikasi/tabel/BRS → search atau allstats_search
-4. Cari teks di dalam PDF → allstats_deep_search
+## Strategy:
+1. Latest headline figures → list_strategic_indicators
+2. Historical/specific numeric data → find_data or get_dynamic_data + var_id above
+3. Search publications/tables/BRS → search or allstats_search
+4. Search text inside PDFs → allstats_deep_search
 
-Contoh:
+Examples:
 - find_data(query="penduduk miskin", region="Indonesia", year="2023")
 - find_data(query="pengangguran", region="Jawa Timur", year="2023")
 - find_data(query="PDRB", region="Bali", year="2023")
 - find_data(query="pemeluk agama", region="Kabupaten Jombang")`,
     {
-      query: z.string().describe("Deskripsi data yang dicari (misal: jumlah penduduk, angka kemiskinan, inflasi, PDRB, pengangguran, pemeluk agama)"),
-      region: z.string().default("Indonesia").describe("Nama wilayah (misal: Indonesia, Jawa Timur, Surabaya, DKI Jakarta). Mendukung nama resmi dan singkatan."),
-      year: z.string().optional().describe("Tahun data (misal: '2023' atau '2020,2021,2022,2023' untuk multi-tahun). Kosongkan untuk data terbaru."),
+      query: z.string().describe("Description of data to find (e.g. jumlah penduduk, angka kemiskinan, inflasi, PDRB, pengangguran, pemeluk agama)"),
+      region: z.string().default("Indonesia").describe("Region name (e.g. Indonesia, Jawa Timur, Surabaya, DKI Jakarta). Supports official names and abbreviations."),
+      year: z.string().optional().describe("Data year (e.g. '2023' or '2020,2021,2022,2023' for multi-year). Leave empty for latest data."),
     },
     async ({ query, region, year }) => {
       try {
@@ -172,9 +172,9 @@ Contoh:
         if (intent.intent !== "single_value" && intent.intent !== "table" && intent.intent !== "unknown" && intent.confidence >= 0.6) {
           let redirectionText = "";
           if (intent.intent === "comparison") {
-            redirectionText = `**Menyalin intensi pencarian: Perbandingan Wilayah**\n` +
-              `Query Anda tampaknya merupakan perbandingan data antar wilayah. Silakan panggil tool \`compare_data\` untuk hasil terbaik.\n\n` +
-              `**Rekomendasi pemanggilan tool:**\n` +
+            redirectionText = `**Detected intent: Regional Comparison**\n` +
+              `Your query appears to be comparing data across regions. Please call the \`compare_data\` tool for best results.\n\n` +
+              `**Recommended tool call:**\n` +
               `\`\`\`json\n` +
               `{\n` +
               `  "name": "compare_data",\n` +
@@ -186,9 +186,9 @@ Contoh:
               `}\n` +
               `\`\`\``;
           } else if (intent.intent === "trend") {
-            redirectionText = `**Menyalin intensi pencarian: Tren Multi-Tahun**\n` +
-              `Query Anda tampaknya menanyakan perkembangan/tren data dari tahun ke tahun. Silakan panggil tool \`get_trend\` untuk hasil terbaik.\n\n` +
-              `**Rekomendasi pemanggilan tool:**\n` +
+            redirectionText = `**Detected intent: Multi-Year Trend**\n` +
+              `Your query appears to be asking about year-over-year data trends. Please call the \`get_trend\` tool for best results.\n\n` +
+              `**Recommended tool call:**\n` +
               `\`\`\`json\n` +
               `{\n` +
               `  "name": "get_trend",\n` +
@@ -199,9 +199,9 @@ Contoh:
               `}\n` +
               `\`\`\``;
           } else if (intent.intent === "ranking") {
-            redirectionText = `**Menyalin intensi pencarian: Peringkat/Ranking**\n` +
-              `Query Anda tampaknya meminta peringkat data wilayah. Silakan panggil tool \`get_ranking\` untuk hasil terbaik.\n\n` +
-              `**Rekomendasi pemanggilan tool:**\n` +
+            redirectionText = `**Detected intent: Ranking**\n` +
+              `Your query appears to be asking for regional rankings. Please call the \`get_ranking\` tool for best results.\n\n` +
+              `**Recommended tool call:**\n` +
               `\`\`\`json\n` +
               `{\n` +
               `  "name": "get_ranking",\n` +
@@ -213,9 +213,9 @@ Contoh:
               `}\n` +
               `\`\`\``;
           } else if (intent.intent === "publication") {
-            redirectionText = `**Menyalin intensi pencarian: Publikasi/Dokumen**\n` +
-              `Query Anda tampaknya mencari publikasi atau dokumen statistik. Silakan panggil tool \`search\` atau \`allstats_search\` untuk hasil terbaik.\n\n` +
-              `**Rekomendasi pemanggilan tool:**\n` +
+            redirectionText = `**Detected intent: Publication/Document**\n` +
+              `Your query appears to be searching for publications or statistical documents. Please call the \`search\` or \`allstats_search\` tool for best results.\n\n` +
+              `**Recommended tool call:**\n` +
               `\`\`\`json\n` +
               `{\n` +
               `  "name": "search",\n` +
@@ -231,7 +231,7 @@ Contoh:
             return {
               content: [{
                 type: "text",
-                text: appendAttribution(redirectionText + `\n\n_Catatan: Penggunaan tool spesifik di atas jauh lebih efisien dan akurat daripada find_data untuk query jenis ini._`)
+                text: appendAttribution(redirectionText + `\n\n_Note: Using the specific tool above is far more efficient and accurate than find_data for this type of query._`)
               }]
             };
           }
@@ -251,7 +251,7 @@ Contoh:
               content: [{
                 type: "text",
                 text: appendAttribution(
-                  `Wilayah "${region}" tidak ditemukan. Gunakan resolve_domain untuk mencari kode wilayah yang benar.`
+                  `Region "${region}" not found. Use resolve_domain to search for the correct region code.`
                 ),
               }],
               isError: true,
@@ -331,8 +331,8 @@ Contoh:
 
               const tableDetail = await client.getStaticTable(domain, bestTable.table_id);
               const tableLines = [
-                `**Pencarian:** "${query}" di ${domainName}`,
-                `**Sumber:** Tabel Statis — ${tableDetail.title}`,
+                `**Search:** "${query}" in ${domainName}`,
+                `**Source:** Static Table — ${tableDetail.title}`,
                 "",
                 tableDetail.table,
               ];
@@ -348,14 +348,14 @@ Contoh:
               content: [{
                 type: "text",
                 text: appendAttribution(
-                  `**Pencarian:** "${query}" di ${domainName}\n\n` +
-                  `Data untuk topik ini tidak tersedia sebagai dynamic data atau static table di BPS WebAPI.\n` +
-                  `Data kemungkinan tersedia di website BPS daerah atau publikasi.\n\n` +
-                  `**Langkah selanjutnya yang disarankan:**\n` +
-                  `1. Gunakan \`allstats_search(query="${allStatsQuery}", domain="${domain}", content="table")\` untuk mencari di AllStats Search Engine\n` +
-                  `2. Gunakan \`allstats_deep_search(query="${allStatsQuery}", domain="${domain}")\` untuk mencari di dalam PDF publikasi\n` +
-                  `3. Cek langsung website BPS daerah (format URL bervariasi per wilayah)\n\n` +
-                  `**Catatan:** Beberapa data (seperti agama) hanya tersedia di website BPS daerah, tidak di WebAPI.`
+                  `**Search:** "${query}" in ${domainName}\n\n` +
+                  `Data for this topic is not available as dynamic data or static table in the BPS WebAPI.\n` +
+                  `Data may be available on the regional BPS website or in publications.\n\n` +
+                  `**Suggested next steps:**\n` +
+                  `1. Use \`allstats_search(query="${allStatsQuery}", domain="${domain}", content="table")\` to search the AllStats Search Engine\n` +
+                  `2. Use \`allstats_deep_search(query="${allStatsQuery}", domain="${domain}")\` to search inside PDF publications\n` +
+                  `3. Check the regional BPS website directly (URL format varies by region)\n\n` +
+                  `**Note:** Some data (like religion) is only available on regional BPS websites, not via WebAPI.`
                 ),
               }],
             };
@@ -367,11 +367,11 @@ Contoh:
             content: [{
               type: "text",
               text: appendAttribution(
-                `Tidak ditemukan data "${query}" untuk ${domainName}.\n\n` +
-                `**Saran:**\n` +
-                `1. Gunakan \`find_variable(keyword="${query}", domain="${domain}")\` untuk mencari variabel yang lebih spesifik\n` +
-                `2. Gunakan \`search(keyword="${query}")\` untuk pencarian lebih luas\n` +
-                `3. Gunakan \`list_strategic_indicators(domain="${domain}")\` untuk indikator utama`
+                `No data found for "${query}" in ${domainName}.\n\n` +
+                `**Suggestions:**\n` +
+                `1. Use \`find_variable(keyword="${query}", domain="${domain}")\` to search for more specific variables\n` +
+                `2. Use \`search(keyword="${query}")\` for broader search\n` +
+                `3. Use \`list_strategic_indicators(domain="${domain}")\` for key indicators`
               ),
             }],
           };
@@ -405,7 +405,7 @@ Contoh:
         }
 
         const formatted = formatDynamicData(result, domain, config.defaultLang);
-        const header = `**Pencarian:** "${query}" di ${domainName}${year ? ` (${year})` : ""}\n**Variabel:** ${bestVar.title} (ID: ${bestVar.var_id})\n\n`;
+        const header = `**Search:** "${query}" in ${domainName}${year ? ` (${year})` : ""}\n**Variable:** ${bestVar.title} (ID: ${bestVar.var_id})\n\n`;
 
         // Fallback for kab/kota domains: try parent province if no data
         if ((!result.datacontent || Object.keys(result.datacontent).length === 0) &&
@@ -418,7 +418,7 @@ Contoh:
             const parentResult = await client.getDynamicData(parentDomain, String(parentVar.var_id), parentPeriod);
             if (parentResult.datacontent && Object.keys(parentResult.datacontent).length > 0) {
               const parentFormatted = formatDynamicData(parentResult, parentDomain, config.defaultLang);
-              const parentHeader = `**Pencarian:** "${query}" di ${domainName}${year ? ` (${year})` : ""}\n**Variabel:** ${parentVar.title} (ID: ${parentVar.var_id})\n_Data diambil dari domain provinsi induk (${parentDomain})_\n\n`;
+              const parentHeader = `**Search:** "${query}" in ${domainName}${year ? ` (${year})` : ""}\n**Variable:** ${parentVar.title} (ID: ${parentVar.var_id})\n_Data retrieved from parent province domain (${parentDomain})_\n\n`;
               return { content: [{ type: "text", text: parentHeader + parentFormatted }] };
             }
           }
@@ -478,8 +478,8 @@ Contoh:
 
               const tableDetail = await client.getStaticTable(domain, bestTable.table_id);
               const tableLines = [
-                `**Pencarian:** "${query}" di ${domainName}`,
-                `**Sumber:** Tabel Statis — ${tableDetail.title}`,
+                `**Search:** "${query}" in ${domainName}`,
+                `**Source:** Static Table — ${tableDetail.title}`,
                 "",
                 tableDetail.table,
               ];
@@ -493,16 +493,16 @@ Contoh:
           }
 
           const altLines = [
-            `Data untuk variabel "${bestVar.title}" tidak tersedia${year ? ` untuk tahun ${year}` : ""} di ${domainName}.`,
+            `Data for variable "${bestVar.title}" is not available${year ? ` for year ${year}` : ""} in ${domainName}.`,
             "",
           ];
           if (candidates.length > 1) {
-            altLines.push("**Variabel alternatif yang ditemukan:**");
+            altLines.push("**Alternative variables found:**");
             for (const c of candidates.slice(0, 5)) {
               altLines.push(`- ${c.title} (var_id: \`${c.var_id}\`)${c.unit ? ` — ${c.unit}` : ""}`);
             }
             altLines.push("");
-            altLines.push("Gunakan `get_dynamic_data` dengan var_id di atas untuk mencoba variabel lain.");
+            altLines.push("Use `get_dynamic_data` with one of the var_ids above to try another variable.");
           }
           return { content: [{ type: "text", text: appendAttribution(altLines.join("\n")) }] };
         }
@@ -512,11 +512,11 @@ Contoh:
 
         // Generate result hints
         const hints = generateResultHints(query, domain, domainName, bestVar.var_id, bestVar.title);
-        const hintsText = hints.length > 0 ? "\n\n**💡 Tips Lanjutan:**\n" + hints.join("\n") : "";
+        const hintsText = hints.length > 0 ? "\n\n**💡 Further Tips:**\n" + hints.join("\n") : "";
 
         return { content: [{ type: "text", text: header + formatted + hintsText }] };
       } catch (error) {
-        const msg = error instanceof Error ? error.message : "Gagal mengambil data";
+        const msg = error instanceof Error ? error.message : "Failed to fetch data";
         return { content: [{ type: "text", text: msg }], isError: true };
       }
     }
@@ -688,11 +688,11 @@ async function tryStrategicIndicators(
     if (titleLower.includes(kw) || kw.split(/\s+/).some(w => titleLower.includes(w))) {
       const lines = [
         `## ${ind.title}`,
-        `**Wilayah:** ${domainName} (${domain})`,
+        `**Region:** ${domainName} (${domain})`,
         "",
       ];
       if (ind.data) {
-        lines.push("| Periode | Nilai |");
+        lines.push("| Period | Value |");
         lines.push("| --- | --- |");
         const entries = Object.entries(ind.data);
         const filtered = year
@@ -837,4 +837,3 @@ async function safeListStaticTables(
     return [];
   }
 }
-

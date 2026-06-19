@@ -150,16 +150,16 @@ export function detectIntent(
 
   // Generate hints
   if (bestIntent === "table") {
-    hints.push("💡 Query ini meminta data tabel/breakdown. find_data akan otomatis fallback ke static table jika dynamic data tidak tersedia.");
+    hints.push("💡 This query requests table/breakdown data. find_data will automatically fallback to static table if dynamic data is unavailable.");
   }
   if (bestIntent === "comparison") {
-    hints.push("💡 Query ini meminta perbandingan. Gunakan compare_data untuk hasil yang lebih baik.");
+    hints.push("💡 This query requests comparison data. Use compare_data for better results.");
   }
   if (bestIntent === "trend") {
-    hints.push("💡 Query ini meminta tren/time-series. Gunakan get_trend untuk data multi-tahun.");
+    hints.push("💡 This query requests trend/time-series data. Use get_trend for multi-year data.");
   }
   if (bestIntent === "ranking") {
-    hints.push("💡 Query ini meminta ranking. Gunakan get_ranking untuk hasil yang lebih baik.");
+    hints.push("💡 This query requests ranking data. Use get_ranking for better results.");
   }
 
   return {

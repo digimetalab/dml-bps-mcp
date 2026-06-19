@@ -9,13 +9,13 @@ export function registerPublicationTools(server: McpServer, client: BpsClient): 
   // Press Releases (BRS)
   server.tool(
     "list_press_releases",
-    "Daftar Berita Resmi Statistik (BRS) dari BPS. BRS berisi rilis data resmi terbaru.",
+    "List BPS Press Releases (Berita Resmi Statistik / BRS). BRS contains the latest official data releases.",
     {
-      domain: z.string().default("0000").describe("Kode domain BPS"),
-      keyword: z.string().optional().describe("Kata kunci pencarian"),
-      year: z.number().optional().describe("Filter tahun"),
-      month: z.number().optional().describe("Filter bulan (1-12)"),
-      page: z.number().optional().describe("Nomor halaman"),
+      domain: z.string().default("0000").describe("BPS domain code"),
+      keyword: z.string().optional().describe("Search keyword"),
+      year: z.number().optional().describe("Filter by year"),
+      month: z.number().optional().describe("Filter by month (1-12)"),
+      page: z.number().optional().describe("Page number"),
     },
     async ({ domain, keyword, year, month, page }) => {
       try {
@@ -27,7 +27,7 @@ export function registerPublicationTools(server: McpServer, client: BpsClient): 
             if (pr.abstract) desc += `\n   ${pr.abstract.substring(0, 200)}...`;
             return desc;
           },
-          "Daftar Berita Resmi Statistik (BRS)"
+          "List of Press Releases (BRS)"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {
@@ -38,10 +38,10 @@ export function registerPublicationTools(server: McpServer, client: BpsClient): 
 
   server.tool(
     "get_press_release",
-    "Ambil detail satu Berita Resmi Statistik (BRS) dari BPS.",
+    "Retrieve details of a single BPS Press Release (BRS).",
     {
-      domain: z.string().describe("Kode domain BPS"),
-      id: z.number().describe("ID BRS"),
+      domain: z.string().describe("BPS domain code"),
+      id: z.number().describe("BRS ID"),
     },
     async ({ domain, id }) => {
       try {
@@ -49,10 +49,10 @@ export function registerPublicationTools(server: McpServer, client: BpsClient): 
         const lines = [
           `## ${pr.title}`,
           "",
-          `**Tanggal Rilis:** ${pr.rl_date}`,
+          `**Release Date:** ${pr.rl_date}`,
         ];
         if (pr.abstract) {
-          lines.push("", "### Abstrak", pr.abstract);
+          lines.push("", "### Abstract", pr.abstract);
         }
         if (pr.pdf) {
           lines.push("", `**Download PDF:** ${pr.pdf}`);
@@ -68,13 +68,13 @@ export function registerPublicationTools(server: McpServer, client: BpsClient): 
   // Publications
   server.tool(
     "list_publications",
-    "Daftar publikasi BPS. Publikasi berisi analisis mendalam dan laporan statistik.",
+    "List BPS publications. Publications contain in-depth analysis and statistical reports.",
     {
-      domain: z.string().default("0000").describe("Kode domain BPS"),
-      keyword: z.string().optional().describe("Kata kunci pencarian"),
-      year: z.number().optional().describe("Filter tahun"),
-      month: z.number().optional().describe("Filter bulan (1-12)"),
-      page: z.number().optional().describe("Nomor halaman"),
+      domain: z.string().default("0000").describe("BPS domain code"),
+      keyword: z.string().optional().describe("Search keyword"),
+      year: z.number().optional().describe("Filter by year"),
+      month: z.number().optional().describe("Filter by month (1-12)"),
+      page: z.number().optional().describe("Page number"),
     },
     async ({ domain, keyword, year, month, page }) => {
       try {
@@ -86,7 +86,7 @@ export function registerPublicationTools(server: McpServer, client: BpsClient): 
             if (pub.issn) desc += ` — ISSN: ${pub.issn}`;
             return desc;
           },
-          "Daftar Publikasi"
+          "List of Publications"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {
@@ -97,10 +97,10 @@ export function registerPublicationTools(server: McpServer, client: BpsClient): 
 
   server.tool(
     "get_publication",
-    "Ambil detail satu publikasi BPS.",
+    "Retrieve details of a single BPS publication.",
     {
-      domain: z.string().describe("Kode domain BPS"),
-      id: z.string().describe("ID publikasi"),
+      domain: z.string().describe("BPS domain code"),
+      id: z.string().describe("Publication ID"),
     },
     async ({ domain, id }) => {
       try {
@@ -108,11 +108,11 @@ export function registerPublicationTools(server: McpServer, client: BpsClient): 
         const lines = [
           `## ${pub.title}`,
           "",
-          `**Tanggal Rilis:** ${pub.rl_date}`,
+          `**Release Date:** ${pub.rl_date}`,
         ];
         if (pub.issn) lines.push(`**ISSN:** ${pub.issn}`);
         if (pub.abstract) {
-          lines.push("", "### Abstrak", pub.abstract);
+          lines.push("", "### Abstract", pub.abstract);
         }
         if (pub.pdf) {
           lines.push("", `**Download PDF:** ${pub.pdf}`);

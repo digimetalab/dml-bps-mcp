@@ -21,25 +21,25 @@ export function registerAnalysisTools(
   // ---------- compare_data ----------
   server.tool(
     "compare_data",
-    `Bandingkan data statistik antar wilayah dalam 1 langkah.
-Gunakan tool ini ketika user ingin membandingkan data antara 2 atau lebih wilayah.
-Catatan: hanya mendukung perbandingan untuk 1 tahun. Untuk perbandingan multi-tahun, gunakan get_trend per wilayah.
+    `Compare statistical data across regions in one step.
+Use this tool when the user wants to compare data between 2 or more regions.
+Note: only supports comparison for 1 year. For multi-year comparison, use get_trend per region.
 
-Contoh query user yang cocok untuk tool ini:
-- "bandingkan kemiskinan Jawa Timur dan Jawa Barat"
-- "IPM DKI Jakarta vs Banten vs Jawa Barat"
-- "perbandingan pengangguran antar provinsi di Jawa"
-- "mana yang lebih tinggi kemiskinan Jatim atau Jabar?"`,
+Example user queries suitable for this tool:
+- "compare poverty in East Java and West Java"
+- "HDI DKI Jakarta vs Banten vs West Java"
+- "unemployment comparison across provinces in Java"
+- "which has higher poverty East Java or West Java?"`,
     {
-      query: z.string().describe("Indikator yang dibandingkan (misal: kemiskinan, pengangguran, IPM, penduduk)"),
-      regions: z.string().describe("Nama wilayah dipisah koma (misal: 'Jawa Timur, Jawa Barat, Jawa Tengah')"),
-      year: z.string().optional().describe("Tahun data (misal: '2023'). Kosongkan untuk data terbaru."),
+      query: z.string().describe("Indicator to compare (e.g. kemiskinan, pengangguran, IPM, penduduk)"),
+      regions: z.string().describe("Region names separated by commas (e.g. 'Jawa Timur, Jawa Barat, Jawa Tengah')"),
+      year: z.string().optional().describe("Data year (e.g. '2023'). Leave empty for latest year."),
     },
     async ({ query, regions, year }) => {
       try {
         const regionList = regions.split(",").map(r => r.trim()).filter(Boolean);
         if (regionList.length < 2) {
-          return { content: [{ type: "text", text: "Minimal 2 wilayah untuk perbandingan." }], isError: true };
+          return { content: [{ type: "text", text: "At least 2 regions are needed for comparison." }], isError: true };
         }
 
         const results: Array<{ region: string; domain: string; value: string; varTitle: string }> = [];
@@ -47,7 +47,7 @@ Contoh query user yang cocok untuk tool ini:
         for (const regionName of regionList) {
           const resolved = await resolver.resolve(regionName);
           if (!resolved) {
-            results.push({ region: regionName, domain: "?", value: "Wilayah tidak ditemukan", varTitle: "" });
+            results.push({ region: regionName, domain: "?", value: "Region not found", varTitle: "" });
             continue;
           }
 
@@ -64,10 +64,10 @@ Contoh query user yang cocok untuk tool ini:
         // Format output
         const varTitle = results.find(r => r.varTitle)?.varTitle || query;
         const lines = [
-          `## Perbandingan: ${varTitle}`,
-          year ? `**Tahun:** ${year}` : "**Tahun:** Terbaru",
+          `## Comparison: ${varTitle}`,
+          year ? `**Year:** ${year}` : "**Year:** Latest",
           "",
-          "| Wilayah | Nilai |",
+          "| Region | Value |",
           "| --- | --- |",
         ];
 
@@ -81,13 +81,13 @@ Contoh query user yang cocok untuk tool ini:
           const values = numericResults.map(r => ({ region: r.region, val: parseFloat(r.value.replace(",", ".")) }));
           values.sort((a, b) => b.val - a.val);
           lines.push("");
-          lines.push(`**Tertinggi:** ${values[0].region} (${values[0].val})`);
-          lines.push(`**Terendah:** ${values[values.length - 1].region} (${values[values.length - 1].val})`);
+          lines.push(`**Highest:** ${values[0].region} (${values[0].val})`);
+          lines.push(`**Lowest:** ${values[values.length - 1].region} (${values[values.length - 1].val})`);
         }
 
         return { content: [{ type: "text", text: appendAttribution(lines.join("\n")) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: error instanceof Error ? error.message : "Gagal membandingkan data" }], isError: true };
+        return { content: [{ type: "text", text: error instanceof Error ? error.message : "Failed to compare data" }], isError: true };
       }
     }
   );
@@ -95,19 +95,19 @@ Contoh query user yang cocok untuk tool ini:
   // ---------- get_trend ----------
   server.tool(
     "get_trend",
-    `Ambil data time-series (tren multi-tahun) dalam 1 langkah.
-Gunakan tool ini ketika user ingin melihat perkembangan/tren data dari tahun ke tahun.
+    `Retrieve time-series data (multi-year trend) in one step.
+Use this tool when the user wants to see data trends year over year.
 
-Contoh query user yang cocok untuk tool ini:
-- "tren kemiskinan Indonesia 2019-2023"
-- "perkembangan IPM Jawa Timur 5 tahun terakhir"
-- "bagaimana pengangguran dari 2020 sampai 2024?"
-- "data kemiskinan Jawa Barat dari tahun ke tahun"`,
+Example user queries suitable for this tool:
+- "poverty trend Indonesia 2019-2023"
+- "HDI development in East Java last 5 years"
+- "how has unemployment been from 2020 to 2024?"
+- "poverty data West Java year to year"`,
     {
-      query: z.string().describe("Indikator yang dianalisis (misal: kemiskinan, pengangguran, IPM)"),
-      region: z.string().default("Indonesia").describe("Nama wilayah"),
-      start_year: z.string().default("2019").describe("Tahun awal"),
-      end_year: z.string().default("2024").describe("Tahun akhir"),
+      query: z.string().describe("Indicator to analyze (e.g. kemiskinan, pengangguran, IPM)"),
+      region: z.string().default("Indonesia").describe("Region name"),
+      start_year: z.string().default("2019").describe("Start year"),
+      end_year: z.string().default("2024").describe("End year"),
     },
     async ({ query, region, start_year, end_year }) => {
       try {
@@ -117,7 +117,7 @@ Contoh query user yang cocok untuk tool ini:
         if (region.toLowerCase() !== "indonesia" && region !== "0000") {
           const resolved = await resolver.resolve(region);
           if (!resolved) {
-            return { content: [{ type: "text", text: `Wilayah "${region}" tidak ditemukan.` }], isError: true };
+            return { content: [{ type: "text", text: `Region "${region}" not found.` }], isError: true };
           }
           domain = resolved.domainId;
           domainName = resolved.domainName;
@@ -139,7 +139,7 @@ Contoh query user yang cocok untuk tool ini:
                     return y >= parseInt(start_year) && y <= parseInt(end_year);
                   });
                   if (entries.length > 0) {
-                    const lines = [`## Tren ${ind.title}`, `**Wilayah:** ${domainName} | **Periode:** ${start_year}–${end_year}`, "", "| Tahun | Nilai | Perubahan |", "| --- | --- | --- |"];
+                    const lines = [`## Trend: ${ind.title}`, `**Region:** ${domainName} | **Period:** ${start_year}–${end_year}`, "", "| Year | Value | Change |", "| --- | --- | --- |"];
                     const sorted = entries.sort((a, b) => a[0].localeCompare(b[0]));
                     for (let i = 0; i < sorted.length; i++) {
                       const [period, val] = sorted[i];
@@ -156,7 +156,7 @@ Contoh query user yang cocok untuk tool ini:
                       const last = sorted[sorted.length-1][1] as number;
                       if (typeof first === "number" && typeof last === "number") {
                         const totalChange = ((last - first) / Math.abs(first) * 100).toFixed(1);
-                        lines.push("", `**Tren:** ${last > first ? "naik" : "turun"} ${totalChange}% dari ${sorted[0][0]} ke ${sorted[sorted.length-1][0]}`);
+                        lines.push("", `**Trend:** ${last > first ? "naik" : "turun"} ${totalChange}% from ${sorted[0][0]} to ${sorted[sorted.length-1][0]}`);
                       }
                     }
                     return { content: [{ type: "text", text: appendAttribution(lines.join("\n")) }] };
@@ -165,7 +165,7 @@ Contoh query user yang cocok untuk tool ini:
               }
             }
           }
-          return { content: [{ type: "text", text: appendAttribution(`Tidak ditemukan variabel "${query}" untuk ${domainName}.`) }] };
+          return { content: [{ type: "text", text: appendAttribution(`Variable "${query}" not found for ${domainName}.`) }] };
         }
 
         // Build year range
@@ -182,7 +182,7 @@ Contoh query user yang cocok untuk tool ini:
           await invalidateVar(query, domain, store);
           varData = await resolveVariableFullSearch(client, store, query, domain);
           if (!varData) {
-            return { content: [{ type: "text", text: appendAttribution(`Tidak ditemukan variabel "${query}" untuk ${domainName}.`) }] };
+            return { content: [{ type: "text", text: appendAttribution(`Variable "${query}" not found for ${domainName}.`) }] };
           }
           periods = await client.listPeriods(domain, varData.var_id);
         }
@@ -211,13 +211,13 @@ Contoh query user yang cocok untuk tool ini:
 
         const periodIds = years.map(y => yearToPeriod[y]).filter(Boolean);
         if (periodIds.length === 0) {
-          return { content: [{ type: "text", text: appendAttribution(`Tidak ada data periode ${start_year}-${end_year} untuk variabel ini.`) }] };
+          return { content: [{ type: "text", text: appendAttribution(`No period data available for ${start_year}-${end_year} for this variable.`) }] };
         }
 
         // Fetch data
         const result = await client.getDynamicData(domain, String(varData.var_id), periodIds.join(","));
         if (!result.datacontent || Object.keys(result.datacontent).length === 0) {
-          return { content: [{ type: "text", text: appendAttribution(`Data tidak tersedia untuk periode ${start_year}-${end_year}.`) }] };
+          return { content: [{ type: "text", text: appendAttribution(`Data not available for period ${start_year}-${end_year}.`) }] };
         }
 
         // Parse datacontent — match period IDs to values
@@ -310,16 +310,16 @@ Contoh query user yang cocok untuk tool ini:
         trendData.sort((a, b) => a.year.localeCompare(b.year));
 
         if (trendData.length === 0) {
-          return { content: [{ type: "text", text: appendAttribution(`Data tren tidak dapat di-parse.`) }] };
+          return { content: [{ type: "text", text: appendAttribution(`Trend data could not be parsed.`) }] };
         }
 
         // Format output
         const unit = varData.unit && !varData.unit.toLowerCase().includes("tidak ada") ? ` (${varData.unit})` : "";
         const lines = [
-          `## Tren ${varData.title}${unit}`,
-          `**Wilayah:** ${domainName} | **Periode:** ${start_year}–${end_year}`,
+          `## Trend: ${varData.title}${unit}`,
+          `**Region:** ${domainName} | **Period:** ${start_year}–${end_year}`,
           "",
-          "| Tahun | Nilai | Perubahan |",
+          "| Year | Value | Change |",
           "| --- | --- | --- |",
         ];
 
@@ -341,12 +341,12 @@ Contoh query user yang cocok untuk tool ini:
           const totalChange = ((last - first) / first * 100).toFixed(1);
           const trend = last > first ? "naik" : last < first ? "turun" : "stabil";
           lines.push("");
-          lines.push(`**Tren:** ${trend} ${totalChange}% dari ${trendData[0].year} ke ${trendData[trendData.length - 1].year}`);
+          lines.push(`**Trend:** ${trend} ${totalChange}% from ${trendData[0].year} to ${trendData[trendData.length - 1].year}`);
         }
 
         return { content: [{ type: "text", text: appendAttribution(lines.join("\n")) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: error instanceof Error ? error.message : "Gagal mengambil data tren" }], isError: true };
+        return { content: [{ type: "text", text: error instanceof Error ? error.message : "Failed to retrieve trend data" }], isError: true };
       }
     }
   );
@@ -354,20 +354,20 @@ Contoh query user yang cocok untuk tool ini:
   // ---------- get_ranking ----------
   server.tool(
     "get_ranking",
-    `Ambil peringkat/ranking provinsi berdasarkan indikator tertentu dalam 1 langkah.
-Gunakan tool ini ketika user ingin melihat peringkat, top-N, atau perbandingan seluruh provinsi.
+    `Retrieve province rankings by a given indicator in one step.
+Use this tool when the user wants to see rankings, top-N, or comparisons across all provinces.
 
-Contoh query user yang cocok untuk tool ini:
-- "10 provinsi termiskin di Indonesia"
-- "peringkat IPM seluruh provinsi"
-- "provinsi dengan pengangguran tertinggi"
-- "ranking kemiskinan per provinsi 2023"
-- "5 provinsi dengan penduduk terbanyak"`,
+Example user queries suitable for this tool:
+- "10 poorest provinces in Indonesia"
+- "HDI ranking across all provinces"
+- "provinces with highest unemployment"
+- "poverty ranking per province 2023"
+- "5 provinces with the largest population"`,
     {
-      query: z.string().describe("Indikator untuk ranking (misal: kemiskinan, pengangguran, IPM, penduduk)"),
-      top_n: z.number().default(10).describe("Jumlah data yang ditampilkan (default 10, max 34 untuk semua provinsi)"),
-      order: z.enum(["highest", "lowest"]).default("highest").describe("Urutan: 'highest' (tertinggi dulu) atau 'lowest' (terendah dulu)"),
-      year: z.string().optional().describe("Tahun data. Kosongkan untuk terbaru."),
+      query: z.string().describe("Indicator for ranking (e.g. kemiskinan, pengangguran, IPM, penduduk)"),
+      top_n: z.number().default(10).describe("Number of results to show (default 10, max 34 for all provinces)"),
+      order: z.enum(["highest", "lowest"]).default("highest").describe("Order: 'highest' (highest first) or 'lowest' (lowest first)"),
+      year: z.string().optional().describe("Data year. Leave empty for latest."),
     },
     async ({ query, top_n, order, year }) => {
       try {
@@ -375,7 +375,7 @@ Contoh query user yang cocok untuk tool ini:
         // Prefer variables with "Provinsi" in title for proper provincial breakdown
         const varData = await resolveVariableForRanking(client, store, query);
         if (!varData) {
-          return { content: [{ type: "text", text: appendAttribution(`Tidak ditemukan variabel "${query}" untuk ranking nasional.`) }] };
+          return { content: [{ type: "text", text: appendAttribution(`Variable "${query}" not found for national ranking.`) }] };
         }
 
         // Get latest period
@@ -401,7 +401,7 @@ Contoh query user yang cocok untuk tool ini:
 
         const result = await client.getDynamicData("0000", String(varData.var_id), periodParam);
         if (!result.datacontent || Object.keys(result.datacontent).length === 0) {
-          return { content: [{ type: "text", text: appendAttribution(`Data ranking tidak tersedia.`) }] };
+          return { content: [{ type: "text", text: appendAttribution(`Ranking data not available.`) }] };
         }
 
         // Build vervar (province) label map — prefer provincial level only
@@ -438,7 +438,7 @@ Contoh query user yang cocok untuk tool ini:
         }
 
         if (rankings.length === 0) {
-          return { content: [{ type: "text", text: appendAttribution(`Data ranking tidak dapat di-parse. Coba gunakan find_data untuk masing-masing wilayah.`) }] };
+          return { content: [{ type: "text", text: appendAttribution(`Ranking data could not be parsed. Try using find_data for each region individually.`) }] };
         }
 
         // Sort
@@ -449,9 +449,9 @@ Contoh query user yang cocok untuk tool ini:
         const unit = varData.unit && !varData.unit.toLowerCase().includes("tidak ada") ? ` (${varData.unit})` : "";
         const lines = [
           `## Ranking: ${varData.title}${unit}`,
-          `**Urutan:** ${order === "highest" ? "Tertinggi" : "Terendah"} | **Tahun:** ${year || "Terbaru"}`,
+          `**Order:** ${order === "highest" ? "Highest" : "Lowest"} | **Year:** ${year || "Latest"}`,
           "",
-          "| # | Wilayah | Nilai |",
+          "| # | Region | Value |",
           "| --- | --- | --- |",
         ];
 
@@ -461,12 +461,12 @@ Contoh query user yang cocok untuk tool ini:
 
         if (rankings.length > display.length) {
           lines.push("");
-          lines.push(`_Menampilkan ${display.length} dari ${rankings.length} wilayah._`);
+          lines.push(`_Showing ${display.length} of ${rankings.length} regions._`);
         }
 
         return { content: [{ type: "text", text: appendAttribution(lines.join("\n")) }] };
       } catch (error) {
-        return { content: [{ type: "text", text: error instanceof Error ? error.message : "Gagal mengambil data ranking" }], isError: true };
+        return { content: [{ type: "text", text: error instanceof Error ? error.message : "Failed to retrieve ranking data" }], isError: true };
       }
     }
   );

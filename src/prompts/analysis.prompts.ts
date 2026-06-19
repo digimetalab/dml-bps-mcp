@@ -4,16 +4,16 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 export function registerPrompts(server: McpServer): void {
   server.prompt(
     "compare_regions",
-    "Template untuk membandingkan data statistik antar wilayah",
+    "Template for comparing statistics between regions",
     {
-      region_a: z.string().describe("Nama wilayah pertama (misal: Jawa Timur)"),
-      region_b: z.string().describe("Nama wilayah kedua (misal: Jawa Barat)"),
-      indicator: z.string().optional().describe("Indikator yang dibandingkan (misal: kemiskinan, pengangguran). Kosongkan untuk ringkasan umum"),
-      year: z.string().optional().describe("Tahun data (misal: 2023). Kosongkan untuk data terbaru"),
+      region_a: z.string().describe("First region name (e.g., East Java)"),
+      region_b: z.string().describe("Second region name (e.g., West Java)"),
+      indicator: z.string().optional().describe("Indicator to compare (e.g., poverty, unemployment). Leave empty for a general summary"),
+      year: z.string().optional().describe("Data year (e.g., 2023). Leave empty for most recent data"),
     },
     async ({ region_a, region_b, indicator, year }) => {
-      const indicatorText = indicator ?? "indikator utama (kemiskinan, pengangguran, pertumbuhan ekonomi, IPM)";
-      const yearText = year ?? "terbaru yang tersedia";
+      const indicatorText = indicator ?? "key indicators (poverty, unemployment, economic growth, HDI)";
+      const yearText = year ?? "most recent available";
 
       return {
         messages: [
@@ -21,18 +21,18 @@ export function registerPrompts(server: McpServer): void {
             role: "user" as const,
             content: {
               type: "text" as const,
-              text: `Bandingkan data statistik ${indicatorText} antara ${region_a} dan ${region_b} untuk tahun ${yearText}.
+              text: `Compare ${indicatorText} statistics between ${region_a} and ${region_b} for the year ${yearText}.
 
-Langkah:
-1. Gunakan tool resolve_domain untuk mendapatkan kode domain kedua wilayah
-2. Gunakan tool list_variables atau list_strategic_indicators untuk menemukan variabel yang relevan
-3. Gunakan tool get_dynamic_data untuk mengambil data kedua wilayah
-4. Sajikan perbandingan dalam format tabel yang mudah dipahami
-5. Berikan analisis singkat tentang perbedaan yang ditemukan
+Steps:
+1. Use the resolve_domain tool to get the domain code for both regions
+2. Use the list_variables or list_strategic_indicators tool to find relevant variables
+3. Use the get_dynamic_data tool to fetch data for both regions
+4. Present the comparison in an easy-to-read table format
+5. Provide a brief analysis of the differences found
 
-Format output yang diharapkan:
-- Tabel perbandingan dengan kolom: Indikator | ${region_a} | ${region_b} | Selisih
-- Ringkasan analisis 2-3 kalimat`,
+Expected output format:
+- Comparison table with columns: Indicator | ${region_a} | ${region_b} | Difference
+- 2-3 sentence analysis summary`,
             },
           },
         ],
@@ -42,12 +42,12 @@ Format output yang diharapkan:
 
   server.prompt(
     "trend_analysis",
-    "Template untuk analisis tren data statistik multi-tahun",
+    "Template for multi-year statistical trend analysis",
     {
-      region: z.string().describe("Nama wilayah (misal: Indonesia, Jawa Timur)"),
-      indicator: z.string().describe("Indikator yang dianalisis (misal: inflasi, kemiskinan, pengangguran)"),
-      start_year: z.string().optional().describe("Tahun awal (misal: 2019)"),
-      end_year: z.string().optional().describe("Tahun akhir (misal: 2023)"),
+      region: z.string().describe("Region name (e.g., Indonesia, East Java)"),
+      indicator: z.string().describe("Indicator to analyze (e.g., inflation, poverty, unemployment)"),
+      start_year: z.string().optional().describe("Start year (e.g., 2019)"),
+      end_year: z.string().optional().describe("End year (e.g., 2023)"),
     },
     async ({ region, indicator, start_year, end_year }) => {
       const startText = start_year ?? "2019";
@@ -59,19 +59,19 @@ Format output yang diharapkan:
             role: "user" as const,
             content: {
               type: "text" as const,
-              text: `Analisis tren ${indicator} di ${region} dari tahun ${startText} sampai ${endText}.
+              text: `Analyze the trend of ${indicator} in ${region} from ${startText} to ${endText}.
 
-Langkah:
-1. Gunakan tool resolve_domain untuk mendapatkan kode domain wilayah
-2. Gunakan tool list_variables atau search untuk menemukan variabel ${indicator}
-3. Gunakan tool get_dynamic_data dengan parameter th="${startText},${Number(startText) + 1},${Number(startText) + 2},...,${endText}" untuk mengambil data multi-tahun
-4. Sajikan data dalam tabel time-series
-5. Identifikasi tren (naik/turun/fluktuatif) dan titik-titik penting
+Steps:
+1. Use the resolve_domain tool to get the region's domain code
+2. Use the list_variables or search tool to find ${indicator} variables
+3. Use the get_dynamic_data tool with the th="${startText},${Number(startText) + 1},${Number(startText) + 2},...,${endText}" parameter to fetch multi-year data
+4. Present the data in a time-series table
+5. Identify trends (up/down/fluctuating) and key points
 
-Format output yang diharapkan:
-- Tabel: Tahun | Nilai | Perubahan (%)
-- Grafik ASCII sederhana jika memungkinkan
-- Analisis tren 3-5 kalimat, termasuk faktor-faktor yang mungkin mempengaruhi`,
+Expected output format:
+- Table: Year | Value | Change (%)
+- Simple ASCII chart if possible
+- 3-5 sentence trend analysis, including potential influencing factors`,
             },
           },
         ],
@@ -81,13 +81,13 @@ Format output yang diharapkan:
 
   server.prompt(
     "poverty_profile",
-    "Template profil kemiskinan suatu daerah",
+    "Poverty profile template for a region",
     {
-      region: z.string().describe("Nama wilayah (misal: Jawa Timur, Surabaya)"),
-      year: z.string().optional().describe("Tahun data (misal: 2023)"),
+      region: z.string().describe("Region name (e.g., East Java, Surabaya)"),
+      year: z.string().optional().describe("Data year (e.g., 2023)"),
     },
     async ({ region, year }) => {
-      const yearText = year ?? "terbaru";
+      const yearText = year ?? "most recent";
 
       return {
         messages: [
@@ -95,24 +95,24 @@ Format output yang diharapkan:
             role: "user" as const,
             content: {
               type: "text" as const,
-              text: `Buatkan profil kemiskinan ${region} tahun ${yearText}.
+              text: `Create a poverty profile for ${region} in ${yearText}.
 
-Langkah:
-1. Gunakan resolve_domain untuk mendapatkan kode domain
-2. Cari data berikut menggunakan list_variables dan get_dynamic_data:
-   - Persentase penduduk miskin
-   - Jumlah penduduk miskin (ribu jiwa)
-   - Garis kemiskinan (Rp/kapita/bulan)
-   - Indeks Kedalaman Kemiskinan (P1)
-   - Indeks Keparahan Kemiskinan (P2)
-3. Jika tersedia, bandingkan dengan angka nasional
-4. Cari BRS terkait kemiskinan menggunakan list_press_releases
+Steps:
+1. Use resolve_domain to get the domain code
+2. Search for the following data using list_variables and get_dynamic_data:
+   - Percentage of poor population
+   - Number of poor population (thousand people)
+   - Poverty line (IDR/capita/month)
+   - Poverty Gap Index (P1)
+   - Poverty Severity Index (P2)
+3. If available, compare with national figures
+4. Search for related press releases using list_press_releases
 
-Format output:
-- Ringkasan data kemiskinan dalam tabel
-- Perbandingan dengan rata-rata nasional
-- Tren 3 tahun terakhir jika data tersedia
-- Sumber BRS terkait`,
+Output format:
+- Poverty data summary in a table
+- Comparison with national average
+- 3-year trend if data is available
+- Related press release sources`,
             },
           },
         ],
@@ -122,13 +122,13 @@ Format output:
 
   server.prompt(
     "economic_overview",
-    "Template ringkasan ekonomi daerah",
+    "Template for regional economic overview",
     {
-      region: z.string().describe("Nama wilayah (misal: DKI Jakarta, Bali)"),
-      year: z.string().optional().describe("Tahun data (misal: 2023)"),
+      region: z.string().describe("Region name (e.g., Jakarta, Bali)"),
+      year: z.string().optional().describe("Data year (e.g., 2023)"),
     },
     async ({ region, year }) => {
-      const yearText = year ?? "terbaru";
+      const yearText = year ?? "most recent";
 
       return {
         messages: [
@@ -136,25 +136,25 @@ Format output:
             role: "user" as const,
             content: {
               type: "text" as const,
-              text: `Buatkan ringkasan ekonomi ${region} tahun ${yearText}.
+              text: `Create an economic overview for ${region} in ${yearText}.
 
-Langkah:
-1. Gunakan resolve_domain untuk mendapatkan kode domain
-2. Kumpulkan data indikator ekonomi utama menggunakan list_strategic_indicators dan get_dynamic_data:
-   - PDRB (nominal dan riil)
-   - Pertumbuhan ekonomi (%)
-   - Inflasi (%)
-   - Tingkat Pengangguran Terbuka (TPT)
-   - Indeks Pembangunan Manusia (IPM)
+Steps:
+1. Use resolve_domain to get the domain code
+2. Collect key economic indicators using list_strategic_indicators and get_dynamic_data:
+   - GRDP (nominal and real)
+   - Economic growth (%)
+   - Inflation (%)
+   - Open Unemployment Rate
+   - Human Development Index (HDI)
    - Gini Ratio
-3. Jika tersedia, cari data ekspor/impor menggunakan get_trade_data
-4. Cari publikasi terkait menggunakan list_publications
+3. If available, search for export/import data using get_trade_data
+4. Search for related publications using list_publications
 
-Format output:
-- Dashboard indikator ekonomi utama (tabel)
-- Perbandingan dengan tahun sebelumnya dan nasional
-- Highlight 3-5 poin penting
-- Sumber data dan publikasi terkait`,
+Output format:
+- Key economic indicator dashboard (table)
+- Comparison with previous year and national figures
+- 3-5 key highlights
+- Data sources and related publications`,
             },
           },
         ],
@@ -164,13 +164,13 @@ Format output:
 
   server.prompt(
     "population_stats",
-    "Template statistik kependudukan",
+    "Template for population statistics",
     {
-      region: z.string().describe("Nama wilayah (misal: Indonesia, Jawa Barat)"),
-      year: z.string().optional().describe("Tahun data (misal: 2023)"),
+      region: z.string().describe("Region name (e.g., Indonesia, West Java)"),
+      year: z.string().optional().describe("Data year (e.g., 2023)"),
     },
     async ({ region, year }) => {
-      const yearText = year ?? "terbaru";
+      const yearText = year ?? "most recent";
 
       return {
         messages: [
@@ -178,25 +178,25 @@ Format output:
             role: "user" as const,
             content: {
               type: "text" as const,
-              text: `Tampilkan statistik kependudukan ${region} tahun ${yearText}.
+              text: `Show population statistics for ${region} in ${yearText}.
 
-Langkah:
-1. Gunakan resolve_domain untuk mendapatkan kode domain
-2. Kumpulkan data kependudukan menggunakan get_dynamic_data dan list_strategic_indicators:
-   - Jumlah penduduk
-   - Laju pertumbuhan penduduk
-   - Kepadatan penduduk (jiwa/km²)
-   - Rasio jenis kelamin
+Steps:
+1. Use resolve_domain to get the domain code
+2. Collect population data using get_dynamic_data and list_strategic_indicators:
+   - Total population
+   - Population growth rate
+   - Population density (people/km²)
+   - Sex ratio
    - Dependency ratio
-   - Angka harapan hidup
-3. Jika tersedia, cari data sensus menggunakan list_census_events dan list_census_topics
-4. Cari tabel statis terkait menggunakan list_static_tables dengan keyword "penduduk"
+   - Life expectancy
+3. If available, search for census data using list_census_events and list_census_topics
+4. Search for related static tables using list_static_tables with the keyword "population"
 
-Format output:
-- Tabel ringkasan demografi
-- Perbandingan dengan sensus sebelumnya jika tersedia
-- Distribusi umur dan jenis kelamin jika data tersedia
-- Sumber data dan catatan metodologi`,
+Output format:
+- Demographic summary table
+- Comparison with previous census if available
+- Age and sex distribution if data is available
+- Data sources and methodology notes`,
             },
           },
         ],

@@ -7,11 +7,11 @@ import { formatErrorForUser } from "../utils/error.js";
 export function registerGlossaryTools(server: McpServer, client: BpsClient): void {
   server.tool(
     "list_glossary",
-    "Cari istilah di glosarium statistik BPS. Berguna untuk memahami definisi dan pengertian indikator statistik.",
+    "Search terms in the BPS statistical glossary. Useful for understanding definitions and meanings of statistical indicators.",
     {
-      domain: z.string().default("0000").describe("Kode domain BPS"),
-      keyword: z.string().optional().describe("Kata kunci pencarian istilah"),
-      page: z.number().optional().describe("Nomor halaman"),
+      domain: z.string().default("0000").describe("BPS domain code"),
+      keyword: z.string().optional().describe("Search keyword for terms"),
+      page: z.number().optional().describe("Page number"),
     },
     async ({ domain, keyword, page }) => {
       try {
@@ -25,11 +25,11 @@ export function registerGlossaryTools(server: McpServer, client: BpsClient): voi
             if (definisi && definisi !== "." && definisi !== ". Produsen data oleh") {
               desc += `\n   ${definisi.substring(0, 300)}`;
             }
-            if (src.satuan && src.satuan !== "-") desc += ` (satuan: ${src.satuan})`;
-            if (src.sumberData) desc += `\n   _Sumber: ${src.sumberData}_`;
+            if (src.satuan && src.satuan !== "-") desc += ` (unit: ${src.satuan})`;
+            if (src.sumberData) desc += `\n   _Source: ${src.sumberData}_`;
             return desc;
           },
-          "Glosarium Statistik BPS"
+          "BPS Statistical Glossary"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {

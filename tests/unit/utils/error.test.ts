@@ -30,9 +30,9 @@ describe("BpsApiError", () => {
 });
 
 describe("BpsNotFoundError", () => {
-  it("should create 404 error with Indonesian message", () => {
+  it("should create 404 error with not found message", () => {
     const err = new BpsNotFoundError("Tabel Statis #123");
-    expect(err.message).toBe("Data tidak ditemukan: Tabel Statis #123");
+    expect(err.message).toBe("Data not found: Tabel Statis #123");
     expect(err.name).toBe("BpsNotFoundError");
     expect(err.statusCode).toBe(404);
   });
@@ -45,9 +45,9 @@ describe("BpsNotFoundError", () => {
 });
 
 describe("BpsAuthError", () => {
-  it("should create 401 error with Indonesian message", () => {
+  it("should create 401 error with authentication message", () => {
     const err = new BpsAuthError();
-    expect(err.message).toBe("Autentikasi gagal. Periksa BPS_API_KEY Anda.");
+    expect(err.message).toBe("Authentication failed. Check your BPS_API_KEY.");
     expect(err.name).toBe("BpsAuthError");
     expect(err.statusCode).toBe(401);
   });
@@ -61,13 +61,13 @@ describe("BpsAuthError", () => {
 describe("formatErrorForUser", () => {
   it("should format BpsAuthError with help text", () => {
     const result = formatErrorForUser(new BpsAuthError());
-    expect(result).toContain("Autentikasi gagal");
+    expect(result).toContain("Authentication failed");
     expect(result).toContain("webapi.bps.go.id");
   });
 
   it("should format BpsNotFoundError", () => {
     const result = formatErrorForUser(new BpsNotFoundError("variabel X"));
-    expect(result).toBe("Data tidak ditemukan: variabel X");
+    expect(result).toBe("Data not found: variabel X");
   });
 
   it("should format generic BpsApiError with status code", () => {
@@ -84,24 +84,24 @@ describe("formatErrorForUser", () => {
 
   it("should format generic Error", () => {
     const result = formatErrorForUser(new Error("random failure"));
-    expect(result).toContain("Terjadi kesalahan");
+    expect(result).toContain("An error occurred");
     expect(result).toContain("random failure");
   });
 
   it("should format unknown error type", () => {
     const result = formatErrorForUser("string error");
-    expect(result).toBe("Terjadi kesalahan yang tidak diketahui.");
+    expect(result).toBe("An unknown error occurred.");
   });
 
   it("should format null/undefined", () => {
-    expect(formatErrorForUser(null)).toBe("Terjadi kesalahan yang tidak diketahui.");
-    expect(formatErrorForUser(undefined)).toBe("Terjadi kesalahan yang tidak diketahui.");
+    expect(formatErrorForUser(null)).toBe("An unknown error occurred.");
+    expect(formatErrorForUser(undefined)).toBe("An unknown error occurred.");
   });
 
   it("should prioritize BpsAuthError over BpsApiError", () => {
     const authErr = new BpsAuthError();
     const result = formatErrorForUser(authErr);
-    expect(result).toContain("Autentikasi gagal");
+    expect(result).toContain("Authentication failed");
     expect(result).not.toContain("Error dari BPS API");
   });
 });

@@ -7,13 +7,13 @@ import { formatErrorForUser } from "../utils/error.js";
 export function registerTradeTools(server: McpServer, client: BpsClient): void {
   server.tool(
     "get_trade_data",
-    "Ambil data perdagangan luar negeri (ekspor/impor) berdasarkan kode HS. Data mencakup nilai dan volume perdagangan Indonesia.",
+    "Retrieve foreign trade data (exports/imports) by HS code. Data includes value and volume of Indonesia's trade.",
     {
-      source: z.enum(["1", "2"]).describe("Sumber data: '1' untuk ekspor, '2' untuk impor"),
-      hs_code: z.string().describe("Kode HS (Harmonized System). Contoh: '0901' untuk kopi"),
-      hs_type: z.string().describe("Tipe HS: '2' untuk 2-digit, '4' untuk 4-digit, '6' untuk 6-digit"),
-      year: z.string().describe("Tahun data. Contoh: '2024'"),
-      period: z.string().describe("Periode: '0' untuk tahunan, '1'-'12' untuk bulanan"),
+      source: z.enum(["1", "2"]).describe("Data source: '1' for export, '2' for import"),
+      hs_code: z.string().describe("HS code (Harmonized System). Example: '0901' for coffee"),
+      hs_type: z.string().describe("HS type: '2' for 2-digit, '4' for 4-digit, '6' for 6-digit"),
+      year: z.string().describe("Data year. Example: '2024'"),
+      period: z.string().describe("Period: '0' for annual, '1'-'12' for monthly"),
     },
     async ({ source, hs_code, hs_type, year, period }) => {
       try {
@@ -24,10 +24,11 @@ export function registerTradeTools(server: McpServer, client: BpsClient): void {
           year,
           period
         );
-        const sourceLabel = source === "1" ? "Ekspor" : "Impor";
+        const sourceLabel = source === "1" ? "Exports" : "Imports";
+        const periodLabel = period === "0" ? "Annual" : `Month ${period}`;
         const text = appendAttribution(
-          `## Data ${sourceLabel} — HS ${hs_code}\n\n` +
-          `**Tahun:** ${year} | **Periode:** ${period === "0" ? "Tahunan" : `Bulan ${period}`}\n\n` +
+          `## Trade Data: ${sourceLabel} — HS ${hs_code}\n\n` +
+          `**Year:** ${year} | **Period:** ${periodLabel}\n\n` +
           "```json\n" + JSON.stringify(result, null, 2) + "\n```"
         );
         return { content: [{ type: "text", text }] };

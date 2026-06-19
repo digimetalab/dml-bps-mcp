@@ -8,13 +8,13 @@ import { formatErrorForUser } from "../utils/error.js";
 export function registerStaticTableTools(server: McpServer, client: BpsClient): void {
   server.tool(
     "list_static_tables",
-    "Daftar tabel statis BPS. Tabel statis berisi data yang sudah di-format dalam bentuk tabel HTML.",
+    "List BPS static tables. Static tables contain pre-formatted data in HTML table format.",
     {
-      domain: z.string().default("0000").describe("Kode domain BPS"),
-      keyword: z.string().optional().describe("Kata kunci pencarian"),
-      year: z.number().optional().describe("Filter tahun"),
-      month: z.number().optional().describe("Filter bulan (1-12)"),
-      page: z.number().optional().describe("Nomor halaman"),
+      domain: z.string().default("0000").describe("BPS domain code"),
+      keyword: z.string().optional().describe("Search keyword"),
+      year: z.number().optional().describe("Filter by year"),
+      month: z.number().optional().describe("Filter by month (1-12)"),
+      page: z.number().optional().describe("Page number"),
     },
     async ({ domain, keyword, year, month, page }) => {
       try {
@@ -22,7 +22,7 @@ export function registerStaticTableTools(server: McpServer, client: BpsClient): 
         const text = formatList(
           result.data,
           (t) => `**${t.title}** (ID: ${t.table_id}) — Update: ${t.updt_date}`,
-          "Daftar Tabel Statis"
+          "List of Static Tables"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {
@@ -33,10 +33,10 @@ export function registerStaticTableTools(server: McpServer, client: BpsClient): 
 
   server.tool(
     "get_static_table",
-    "Ambil detail satu tabel statis BPS (termasuk konten tabel dalam format HTML).",
+    "Retrieve details of a single BPS static table (includes table content in HTML format).",
     {
-      domain: z.string().describe("Kode domain BPS"),
-      id: z.number().describe("ID tabel statis"),
+      domain: z.string().describe("BPS domain code"),
+      id: z.number().describe("Static table ID"),
     },
     async ({ domain, id }) => {
       try {

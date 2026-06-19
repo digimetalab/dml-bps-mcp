@@ -12,7 +12,7 @@ describe("formatDynamicData", () => {
 
     expect(result).toContain("Jumlah Penduduk");
     expect(result).toContain("Indonesia");
-    expect(result).toContain("Sumber: Badan Pusat Statistik");
+    expect(result).toContain("Source: Statistics Indonesia");
   });
 
   it("should include period labels in output", () => {
@@ -44,8 +44,8 @@ describe("formatDynamicData", () => {
     };
 
     const result = formatDynamicData(emptyResponse, "Indonesia");
-    expect(result).toContain("Tidak ada data");
-    expect(result).toContain("Sumber: Badan Pusat Statistik");
+    expect(result).toContain("No data found");
+    expect(result).toContain("Source: Statistics Indonesia");
   });
 
   it("should handle undefined datacontent", () => {
@@ -57,7 +57,7 @@ describe("formatDynamicData", () => {
     };
 
     const result = formatDynamicData(noDataResponse, "Indonesia");
-    expect(result).toContain("Tidak ada data");
+    expect(result).toContain("No data found");
   });
 
   it("should use English when lang is eng", () => {
@@ -93,13 +93,13 @@ describe("formatList", () => {
     expect(result).toContain("1. Alpha");
     expect(result).toContain("2. Beta");
     expect(result).toContain("3. Gamma");
-    expect(result).toContain("Sumber: Badan Pusat Statistik");
+    expect(result).toContain("Source: Statistics Indonesia");
   });
 
   it("should handle empty list in Indonesian", () => {
     const result = formatList([], (item: string) => item, "Data Kosong");
-    expect(result).toContain("Tidak ada data kosong yang ditemukan");
-    expect(result).toContain("Sumber: Badan Pusat Statistik");
+    expect(result).toContain("No data kosong found");
+    expect(result).toContain("Source: Statistics Indonesia");
   });
 
   it("should handle empty list in English", () => {

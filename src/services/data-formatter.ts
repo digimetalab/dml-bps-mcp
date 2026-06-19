@@ -20,7 +20,7 @@ interface FormattedRow {
 export function formatDynamicData(
   response: BpsDynamicDataResponse,
   domain: string,
-  lang: "ind" | "eng" = "ind"
+  lang: "ind" | "eng" = "eng"
 ): string {
   const datacontent = response.datacontent;
   if (!datacontent || Object.keys(datacontent).length === 0) {
@@ -54,7 +54,12 @@ export function formatDynamicData(
   }
 
   if (rows.length === 0) {
-    return appendAttribution("Data tersedia tetapi tidak dapat di-parse.", lang);
+    return appendAttribution(
+      lang === "ind"
+        ? "Data tersedia tetapi tidak dapat di-parse."
+        : "Data is available but could not be parsed.",
+      lang
+    );
   }
 
   // Format as text table
@@ -132,7 +137,7 @@ export function formatDynamicData(
   // Unit info
   const units = [...new Set(rows.map((r) => r.unit).filter(Boolean))];
   if (units.length > 0) {
-    lines.push(`**Satuan:** ${units.join(", ")}`);
+    lines.push(`**Unit:** ${units.join(", ")}`);
   }
 
   return appendAttribution(lines.join("\n"), lang);
@@ -276,7 +281,7 @@ export function formatList<T>(
   items: T[],
   formatter: (item: T) => string,
   title: string,
-  lang: "ind" | "eng" = "ind"
+  lang: "ind" | "eng" = "eng"
 ): string {
   if (items.length === 0) {
     return appendAttribution(

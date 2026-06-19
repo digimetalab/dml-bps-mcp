@@ -13,18 +13,18 @@ export function registerDomainTools(
 ): void {
   server.tool(
     "list_domains",
-    "Daftar domain/wilayah BPS (provinsi, kabupaten/kota). Gunakan type='prov' untuk provinsi, 'kab' untuk semua kabupaten, 'kabbyprov' untuk kabupaten per provinsi.",
+    "List BPS domains/regions (province, regency/city). Use type='prov' for provinces, 'kab' for all regencies, 'kabbyprov' for regencies per province.",
     {
-      type: z.enum(["all", "prov", "kab", "kabbyprov"]).default("all").describe("Tipe domain: all, prov (provinsi), kab (kabupaten), kabbyprov (kabupaten per provinsi)"),
-      prov: z.string().optional().describe("ID provinsi (wajib jika type=kabbyprov). Contoh: '35' untuk Jawa Timur"),
+      type: z.enum(["all", "prov", "kab", "kabbyprov"]).default("all").describe("Domain type: all, prov (province), kab (regency/city), kabbyprov (regencies per province)"),
+      prov: z.string().optional().describe("Province ID (required if type=kabbyprov). Example: '35' for East Java"),
     },
     async ({ type, prov }) => {
       try {
         const result = await client.listDomains(type, prov);
         const text = formatList(
           result.data,
-          (d) => `**${d.domain_name}** (kode: ${d.domain_id})`,
-          "Daftar Domain/Wilayah"
+          (d) => `**${d.domain_name}** (code: ${d.domain_id})`,
+          "List of Domains/Regions"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {
@@ -35,9 +35,9 @@ export function registerDomainTools(
 
   server.tool(
     "resolve_domain",
-    "Konversi nama wilayah ke kode domain BPS. Mendukung nama resmi, singkatan (Jatim, Jabar, Jogja), dan fuzzy matching.",
+    "Convert region name to BPS domain code. Supports official names, abbreviations (Jatim, Jabar, Jogja), and fuzzy matching.",
     {
-      query: z.string().describe("Nama wilayah yang ingin di-resolve. Contoh: 'Surabaya', 'Jawa Timur', 'Jatim', '3578'"),
+      query: z.string().describe("Region name to resolve. Example: 'Surabaya', 'Jawa Timur', 'Jatim', '3578'"),
     },
     async ({ query }) => {
       try {
@@ -46,7 +46,7 @@ export function registerDomainTools(
           return {
             content: [{
               type: "text",
-              text: appendAttribution(`Wilayah "${query}" tidak ditemukan. Coba gunakan nama resmi atau kode BPS.`),
+              text: appendAttribution(`Region "${query}" not found. Try using the official name or BPS code.`),
             }],
           };
         }
@@ -54,7 +54,7 @@ export function registerDomainTools(
           content: [{
             type: "text",
             text: appendAttribution(
-              `**${result.domainName}**\nKode domain: ${result.domainId}\n\nGunakan kode "${result.domainId}" sebagai parameter 'domain' di tool lainnya.`
+              `**${result.domainName}**\nDomain code: ${result.domainId}\n\nUse code "${result.domainId}" as the 'domain' parameter in other tools.`
             ),
           }],
         };

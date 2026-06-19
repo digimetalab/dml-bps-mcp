@@ -10,8 +10,8 @@ export const DEFAULTS = {
 } as const;
 
 export const ATTRIBUTION =
-  "Sumber: Badan Pusat Statistik (BPS) — https://www.bps.go.id\n" +
-  "Layanan ini menggunakan API Badan Pusat Statistik (BPS).";
+  "Source: Badan Pusat Statistik (BPS) — https://www.bps.go.id\n" +
+  "This service uses the BPS (Badan Pusat Statistik) API.";
 
 export const ATTRIBUTION_EN =
   "Source: Statistics Indonesia (BPS) — https://www.bps.go.id\n" +

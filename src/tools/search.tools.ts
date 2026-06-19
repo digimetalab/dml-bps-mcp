@@ -17,9 +17,9 @@ const WEBAPI_TO_ALLSTATS_CONTENT: Record<string, string> = {
 
 function formatAllStatsFallback(res: AllStatsSearchResponse): string {
   const lines: string[] = [];
-  lines.push(`### Hasil dari AllStats Search (fallback)`);
+  lines.push(`### Results from AllStats Search (fallback)`);
   lines.push(
-    `Ditemukan **${res.totalResults.toLocaleString("id-ID")}** hasil via AllStats Search Engine`
+    `Found **${res.totalResults.toLocaleString("id-ID")}** results via AllStats Search Engine`
   );
   lines.push("");
 
@@ -27,11 +27,11 @@ function formatAllStatsFallback(res: AllStatsSearchResponse): string {
     const r = res.results[i];
     lines.push(`**${i + 1}. ${r.title}**`);
     if (r.description) lines.push(`> ${r.description}`);
-    lines.push(`- Tipe: ${r.contentType} | Sumber: ${r.domain}`);
+    lines.push(`- Type: ${r.contentType} | Source: ${r.domain}`);
     if (r.url) lines.push(`- URL: ${r.url}`);
     if (r.deepSearchId) {
       lines.push(
-        `- Deep Search ID: \`${r.deepSearchId}\` _(gunakan allstats_deep_search untuk cari di dalam publikasi)_`
+        `- Deep Search ID: \`${r.deepSearchId}\` _(use allstats_deep_search to search within this publication)_`
       );
     }
     lines.push("");
@@ -47,28 +47,28 @@ export function registerSearchTools(
 ): void {
   server.tool(
     "search",
-    `Pencarian data lintas tipe di BPS (tabel statis, publikasi, BRS, indikator).
+    `Cross-type search across BPS content (static tables, publications, press releases, indicators).
 
-Kapan menggunakan tool ini:
-- Mencari tabel statis atau publikasi berdasarkan topik
-- Mencari BRS (Berita Resmi Statistik) terbaru
-- Pencarian umum ketika find_data tidak menemukan hasil
+When to use this tool:
+- Searching for static tables or publications by topic
+- Searching for the latest press releases (BRS)
+- General search when find_data returns no results
 
-Kapan TIDAK menggunakan tool ini:
-- Jika user minta data angka spesifik → gunakan find_data
-- Jika sudah tahu variabel ID → gunakan get_dynamic_data
+When NOT to use this tool:
+- If user asks for specific numeric data → use find_data
+- If you already know the variable ID → use get_dynamic_data
 
-Jika WebAPI tidak menemukan hasil, otomatis fallback ke AllStats Search Engine.`,
+If WebAPI finds no results, it automatically falls back to the AllStats Search Engine.`,
     {
-      domain: z.string().default("0000").describe("Kode domain BPS"),
-      keyword: z.string().describe("Kata kunci pencarian"),
+      domain: z.string().default("0000").describe("BPS domain code"),
+      keyword: z.string().describe("Search keyword"),
       type: z
         .string()
         .optional()
         .describe(
-          "Filter tipe hasil: 'statictable', 'pressrelease', 'publication', 'strategicindicator' (opsional)"
+          "Filter by result type: 'statictable', 'pressrelease', 'publication', 'strategicindicator' (optional)"
         ),
-      page: z.number().optional().describe("Nomor halaman"),
+      page: z.number().optional().describe("Page number"),
     },
     async ({ domain, keyword, type, page }) => {
       // --- Step 1: Try WebAPI ---
@@ -112,7 +112,7 @@ Jika WebAPI tidak menemukan hasil, otomatis fallback ke AllStats Search Engine.`
       if (webapiHasData) {
         // WebAPI returned results — use them
         const text = appendAttribution(
-          `## Hasil Pencarian: "${keyword}"\n\n` +
+          `## Search Results: "${keyword}"\n\n` +
             "```json\n" +
             JSON.stringify(webapiResult, null, 2) +
             "\n```"
@@ -137,16 +137,16 @@ Jika WebAPI tidak menemukan hasil, otomatis fallback ke AllStats Search Engine.`
 
           if (allStatsResult.results.length > 0) {
             const parts: string[] = [];
-            parts.push(`## Hasil Pencarian: "${keyword}"\n`);
+            parts.push(`## Search Results: "${keyword}"\n`);
 
             // Indicate fallback if WebAPI was attempted
             if (webapiError) {
               parts.push(
-                `> **Catatan:** WebAPI BPS tidak tersedia (${webapiError instanceof Error ? webapiError.message : "error"}). Menampilkan hasil dari AllStats Search.\n`
+                `> **Note:** BPS WebAPI unavailable (${webapiError instanceof Error ? webapiError.message : "error"}). Showing results from AllStats Search.\n`
               );
             } else if (webapiResult && !webapiHasData) {
               parts.push(
-                `> **Catatan:** WebAPI BPS tidak menemukan hasil untuk "${keyword}". Menampilkan hasil dari AllStats Search.\n`
+                `> **Note:** BPS WebAPI found no results for "${keyword}". Showing results from AllStats Search.\n`
               );
             }
 
@@ -171,7 +171,7 @@ Jika WebAPI tidak menemukan hasil, otomatis fallback ke AllStats Search Engine.`
             content: [
               {
                 type: "text",
-                text: `Tidak ditemukan hasil untuk "${keyword}" di WebAPI maupun AllStats Search.`,
+                text: `No results found for "${keyword}" in WebAPI or AllStats Search.`,
               },
             ],
             isError: true,
@@ -188,7 +188,7 @@ Jika WebAPI tidak menemukan hasil, otomatis fallback ke AllStats Search Engine.`
         content: [
           {
             type: "text",
-            text: `Tidak ditemukan hasil untuk "${keyword}".`,
+            text: `No results found for "${keyword}".`,
           },
         ],
         isError: true,

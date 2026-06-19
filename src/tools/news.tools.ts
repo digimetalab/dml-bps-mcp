@@ -8,11 +8,11 @@ import { formatErrorForUser } from "../utils/error.js";
 export function registerNewsTools(server: McpServer, client: BpsClient): void {
   server.tool(
     "list_news",
-    "Daftar berita dari website BPS. Berbeda dengan BRS (Berita Resmi Statistik), ini adalah berita umum BPS.",
+    "List news from the BPS website. Unlike BRS (Official Statistics News), these are general BPS news items.",
     {
-      domain: z.string().default("0000").describe("Kode domain BPS"),
-      keyword: z.string().optional().describe("Kata kunci pencarian"),
-      page: z.number().optional().describe("Nomor halaman"),
+      domain: z.string().default("0000").describe("BPS domain code"),
+      keyword: z.string().optional().describe("Search keyword"),
+      page: z.number().optional().describe("Page number"),
     },
     async ({ domain, keyword, page }) => {
       try {
@@ -20,7 +20,7 @@ export function registerNewsTools(server: McpServer, client: BpsClient): void {
         const text = formatList(
           result.data,
           (n) => `**${n.title}** (ID: ${n.news_id}) — ${n.newscat_name} — ${n.rl_date}`,
-          "Daftar Berita BPS"
+          "List of BPS News"
         );
         return { content: [{ type: "text", text }] };
       } catch (error) {
@@ -31,10 +31,10 @@ export function registerNewsTools(server: McpServer, client: BpsClient): void {
 
   server.tool(
     "get_news",
-    "Ambil detail satu berita dari website BPS.",
+    "Retrieve details of a single news item from the BPS website.",
     {
-      domain: z.string().describe("Kode domain BPS"),
-      id: z.number().describe("ID berita"),
+      domain: z.string().describe("BPS domain code"),
+      id: z.number().describe("News ID"),
     },
     async ({ domain, id }) => {
       try {
@@ -50,14 +50,14 @@ export function registerNewsTools(server: McpServer, client: BpsClient): void {
         const lines = [
           `## ${detail.title}`,
           "",
-          `**Kategori:** ${detail.newscat_name}`,
-          `**Tanggal:** ${detail.rl_date}`,
+          `**Category:** ${detail.newscat_name}`,
+          `**Date:** ${detail.rl_date}`,
           "",
           cleanNews,
         ];
 
         if (detail.related && detail.related.length > 0) {
-          lines.push("", "### Berita Terkait");
+          lines.push("", "### Related News");
           for (const r of detail.related) {
             lines.push(`- ${r.title} (ID: ${r.id})`);
           }

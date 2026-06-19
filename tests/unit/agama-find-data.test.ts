@@ -106,7 +106,7 @@ describe("find_data agama flow", () => {
     });
 
     const text = result.content[0].text;
-    expect(text).toContain("Tabel Statis");
+    expect(text).toContain("Static Table");
     expect(text).toContain("AGAMA");
     expect(text).toContain("Kabupaten Jombang");
   });
@@ -124,7 +124,7 @@ describe("find_data agama flow", () => {
     // Should NOT return "Jenis Kelamin" data
     expect(text).not.toContain("Jenis Kelamin");
     // Should fallback to static table with agama data
-    expect(text).toContain("Tabel Statis");
+    expect(text).toContain("Static Table");
     expect(text).toContain("AGAMA");
   });
 

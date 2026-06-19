@@ -246,10 +246,10 @@ export class AllStatsClient {
   ): AllStatsSearchResponse {
     const $ = cheerio.load(html);
 
-    // Total results: "Menampilkan 4.079 hasil pencarian dalam 0.367 detik"
+    // Total results: "Menampilkan 4.079 hasil pencarian dalam 0.367 detik" or "Showing 4,079 search results in 0.367 seconds"
     const totalMatch = $("body")
       .text()
-      .match(/Menampilkan\s+([\d.]+)\s+hasil pencarian/);
+      .match(/(?:Menampilkan|Showing)\s+([\d.]+)\s+(?:hasil pencarian|search results)/);
     const totalResults = totalMatch
       ? parseInt(totalMatch[1].replace(/\./g, ""))
       : 0;
@@ -347,10 +347,10 @@ export class AllStatsClient {
       if (m) publication.pdfDownloadBase = m[0];
     });
 
-    // Total matches: "Menampilkan 11 halaman dengan kata kunci "akses internet""
+    // Total matches: "Menampilkan 11 halaman dengan kata kunci..." or "Showing 11 pages with keyword..."
     const totalMatch = $("body")
       .text()
-      .match(/Menampilkan\s+(\d+)\s+halaman dengan kata kunci/);
+      .match(/(?:Menampilkan|Showing)\s+(\d+)\s+(?:halaman dengan kata kunci|pages with keyword)/);
     const totalMatches = totalMatch ? parseInt(totalMatch[1]) : 0;
 
     // Pagination
