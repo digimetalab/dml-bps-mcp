@@ -1,0 +1,70 @@
+{
+  "name": "dml-bps-mcp",
+  "version": "0.15.4",
+  "description": "MCP server for BPS (Badan Pusat Statistik) Indonesia statistics data",
+  "author": "Digimetalab",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Digimetalab/dml-bps-mcp.git"
+  },
+  "homepage": "https://github.com/Digimetalab/dml-bps-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Digimetalab/dml-bps-mcp/issues"
+  },
+  "type": "module",
+  "bin": {
+    "dml-bps-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node --env-file=.env dist/index.js",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "typecheck:worker": "tsc --noEmit --project tsconfig.worker.json",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:watch": "vitest",
+    "dev:worker": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:dry": "wrangler deploy --dry-run"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.6.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cheerio": "^1.2.0",
+    "stopwords-iso": "^1.1.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260519.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.19.19",
+    "eslint": "^10.4.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.4",
+    "vitest": "^4.1.6",
+    "wrangler": "^4.93.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "bps",
+    "statistics",
+    "indonesia",
+    "model-context-protocol",
+    "ai",
+    "claude",
+    "data"
+  ]
+}

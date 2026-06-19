@@ -1,0 +1,22 @@
+name = "dml-bps-mcp"
+main = "src/worker.ts"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# BPS_API_BASE_URL is configured to route through the proxy and bypass BPS WAF blocks on Cloudflare Workers
+BPS_API_BASE_URL = "https://bps-api.digimetalab.my.id/v1"
+BPS_ALLSTATS_BASE_URL = "https://bps-api.digimetalab.my.id/allstats/"
+BPS_DEFAULT_LANG = "ind"
+BPS_DEFAULT_DOMAIN = "0000"
+
+# KV namespace for BPS data caching
+[[kv_namespaces]]
+binding = "BPS_CACHE"
+id = "847d3de768034a58ba48bc6f637f70df"
+
+# KV namespace for OAuth tokens (required by workers-oauth-provider)
+# Create with: wrangler kv namespace create OAUTH_KV
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "be20e5b126b44a35bb99c7f1c0961d14"
