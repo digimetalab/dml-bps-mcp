@@ -1,8 +1,11 @@
 # DML BPS MCP Server
 
 [![CI](https://github.com/Digimetalab/dml-bps-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Digimetalab/dml-bps-mcp/actions/workflows/ci.yml)
+[![Deploy](https://github.com/Digimetalab/dml-bps-mcp/actions/workflows/deploy-worker.yml/badge.svg)](https://github.com/Digimetalab/dml-bps-mcp/actions/workflows/deploy-worker.yml)
+[![Release](https://github.com/Digimetalab/dml-bps-mcp/actions/workflows/release.yml/badge.svg)](https://github.com/Digimetalab/dml-bps-mcp/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](https://nodejs.org)
+[![Deployed](https://img.shields.io/badge/dynamic/json?url=https://dml-bps-mcp.digimetalab.workers.dev/&query=%24.version&label=worker&color=blue)](https://dml-bps-mcp.digimetalab.workers.dev)
 
 MCP (Model Context Protocol) server for BPS (Badan Pusat Statistik) Indonesia official statistics data — by **Digimetalab**. Enables AI clients like Claude Desktop, Claude Code, Cursor, and others to access official Indonesian statistical data through natural language.
 
@@ -52,11 +55,13 @@ BPS_API_KEY=your_key npm start
 
 ## Remote Access via Cloudflare Workers
 
-The server is publicly available at:
+The server is deployed and publicly available at:
 
 ```
 https://dml-bps-mcp.digimetalab.workers.dev/mcp
 ```
+
+Health check: [https://dml-bps-mcp.digimetalab.workers.dev](https://dml-bps-mcp.digimetalab.workers.dev)
 
 ### Using with Claude.ai
 
@@ -326,7 +331,7 @@ npm install
 
 ```bash
 npm run build          # Compile TypeScript
-npm run test:unit      # Run unit tests (105+ tests)
+npm run test:unit      # Run unit tests (105 tests)
 npm run lint           # ESLint check
 npm run typecheck      # TypeScript type check
 ```
@@ -362,10 +367,10 @@ Or test directly via stdin (without inspector):
 
 ```bash
 # Test initialize
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | BPS_API_KEY=your_key node dist/index.js
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | node --env-file=.env dist/index.js
 
 # Test find_data
-printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}\n{"jsonrpc":"2.0","method":"notifications/initialized"}\n{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"find_data","arguments":{"query":"inflation","region":"Indonesia"}}}\n' | BPS_API_KEY=your_key node dist/index.js
+printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}\n{"jsonrpc":"2.0","method":"notifications/initialized"}\n{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"find_data","arguments":{"query":"inflation","region":"Indonesia"}}}\n' | node --env-file=.env dist/index.js
 ```
 
 ### Testing Remote Worker (Local)
@@ -409,6 +414,19 @@ src/
 ├── worker.ts       # Cloudflare Worker entry point (HTTP)
 └── server.ts       # MCP server factory
 ```
+
+## GitHub Actions / CI/CD
+
+This project uses three automated workflows on every push to `main`:
+
+| Workflow | Description | Required Secrets |
+|----------|-------------|-----------------|
+| **CI** | Lint, typecheck, unit tests | — |
+| **Deploy Workers** | Deploy to Cloudflare Workers | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` |
+| **Release** | Automated versioning & changelog | `RELEASE_PLEASE_TOKEN` |
+
+To set up your fork, add these secrets at:
+`https://github.com/<your-org>/dml-bps-mcp/settings/secrets/actions`
 
 ## Support & Donations
 
