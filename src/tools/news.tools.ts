@@ -7,6 +7,27 @@ import { formatErrorForUser } from "../utils/error.js";
 
 export function registerNewsTools(server: McpServer, client: BpsClient): void {
   server.tool(
+    "list_news_categories",
+    "List BPS news categories (e.g., Sensus dan Survey, Statistik Lain). Use the category name as newscat filter in list_news.",
+    {
+      domain: z.string().default("0000").describe("BPS domain code"),
+    },
+    async ({ domain }) => {
+      try {
+        const result = await client.listNewsCategories(domain);
+        const text = formatList(
+          result,
+          (c) => `**${c.newscat_name}** (ID: ${c.newscat_id})`,
+          "List of BPS News Categories"
+        );
+        return { content: [{ type: "text", text }] };
+      } catch (error) {
+        return { content: [{ type: "text", text: formatErrorForUser(error) }], isError: true };
+      }
+    }
+  );
+
+  server.tool(
     "list_news",
     "List news from the BPS website. Unlike BRS (Official Statistics News), these are general BPS news items.",
     {

@@ -6,3 +6,5 @@ dist/
 .agents/
 .claude/
 skills-lock.json
+graphify-out/
+.opencode/node_modules/

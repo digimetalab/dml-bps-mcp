@@ -20,6 +20,10 @@ import { registerAnalysisTools } from "./tools/analysis.tools.js";
 import { registerInfographicTools } from "./tools/infographic.tools.js";
 import { registerCensusTools } from "./tools/census.tools.js";
 import { registerCsaTools } from "./tools/csa.tools.js";
+import { registerSimdasiTools } from "./tools/simdasi.tools.js";
+import { registerSdgsTools } from "./tools/sdgs.tools.js";
+import { registerSddsTools } from "./tools/sdds.tools.js";
+import { registerClassificationTools } from "./tools/classification.tools.js";
 import { registerNewsTools } from "./tools/news.tools.js";
 import { registerGlossaryTools } from "./tools/glossary.tools.js";
 import { registerResources } from "./resources/domain.resources.js";
@@ -51,6 +55,10 @@ export function createServer(
   registerInfographicTools(server, client);
   registerCensusTools(server, client);
   registerCsaTools(server, client);
+  registerSimdasiTools(server, client);
+  registerSdgsTools(server, client);
+  registerSddsTools(server, client);
+  registerClassificationTools(server, client);
   registerNewsTools(server, client);
   registerGlossaryTools(server, client);
 

@@ -20,7 +20,7 @@ const PATH_PARAMS = new Set(["domain", "key", "lang", "id", "var", "th", "turvar
 const TRADE_PATH_PARAMS = new Set(["sumber", "kodehs", "jenishs", "tahun", "periode", "lang", "key"]);
 
 /** Parameters that go into the URL path for interoperabilitas endpoints */
-const INTEROP_PATH_PARAMS = new Set(["datasource", "id", "kegiatan", "topik", "wilayah", "key"]);
+const INTEROP_PATH_PARAMS = new Set(["datasource", "id", "kegiatan", "Kegiatan", "topik", "Topik", "wilayah", "parent", "Tahun", "id_tabel", "id_subjek", "Wilayah_sensus", "Dataset", "key"]);
 
 /**
  * Build a list URL: /api/list/model/{model}/param1/val1/.../key/{key}/?queryparams
@@ -197,6 +197,9 @@ export const MODELS = {
   // News
   NEWS: "news",
 
+  // News Category
+  NEWS_CATEGORY: "newscategory",
+
   // Glossary
   GLOSSARY: "glosarium",
 
@@ -204,4 +207,25 @@ export const MODELS = {
   CSA_SUBJECT_CATEGORY: "subcatcsa",
   CSA_SUBJECT: "subjectcsa",
   CSA_TABLE: "tablestatistic",
+
+  // SDGs (Sustainable Development Goals)
+  SDGS: "sdgs",
+
+  // SDDS (Special Data Dissemination Standard)
+  SDDS: "sdds",
+
+  // Statistical Classifications (KBLI/KBKI)
+  KBLI_2009: "kbli2009",
+  KBLI_2015: "kbli2015",
+  KBLI_2017: "kbli2017",
+  KBLI_2020: "kbli2020",
+  KBKI_2015: "kbki2015",
 } as const;
+
+export const CLASSIFICATION_MODELS = [
+  "kbli2009",
+  "kbli2015",
+  "kbli2017",
+  "kbli2020",
+  "kbki2015",
+] as const;

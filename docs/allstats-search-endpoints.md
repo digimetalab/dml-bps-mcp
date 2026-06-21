@@ -1,7 +1,7 @@
-# AllStats Search — Integration Guide untuk BPS MCP Server
+# AllStats Search — Integration Guide for BPS MCP Server
 
-> Hasil reverse-engineering `searchengine.web.bps.go.id` untuk diintegrasi ke MCP server BPS.
-> Tidak memerlukan API key. Cukup header `User-Agent`.
+> Reverse-engineering results of `searchengine.web.bps.go.id` for integration into the BPS MCP server.
+> No API key required. Only a `User-Agent` header is needed.
 
 ---
 
@@ -22,19 +22,19 @@
 
 ## Overview
 
-AllStats Search adalah search engine internal BPS dengan dua fitur utama:
+AllStats Search is BPS's internal search engine with two main features:
 
-| Fitur | Deskripsi | Unique Value |
-|-------|-----------|--------------|
-| **Search** | Pencarian konten BPS (publikasi, tabel, BRS, infografis, data mikro, glosarium, klasifikasi) | Unified search across all BPS content types |
-| **Deep Search** | Full-text search ke dalam isi PDF publikasi BPS | **Tidak tersedia di WebAPI** — ini killer feature |
+| Feature | Description | Unique Value |
+|---------|-------------|--------------|
+| **Search** | BPS content search (publications, tables, BRS, infographics, microdata, glossary, classifications) | Unified search across all BPS content types |
+| **Deep Search** | Full-text search inside BPS PDF publications | **Not available via WebAPI** — this is the killer feature |
 
 ### Technical Details
 
-- **Rendering:** Full SSR (Server-Side Rendered) — data embedded langsung di HTML
-- **Auth:** Tidak perlu API key atau cookies
-- **Requirement:** Hanya butuh header `User-Agent` (tanpa ini → 403)
-- **Format:** HTML (perlu parsing, tidak ada JSON API)
+- **Rendering:** Full SSR (Server-Side Rendered) — data embedded directly in HTML
+- **Auth:** No API key or cookies needed
+- **Requirement:** Only needs a `User-Agent` header (without this → 403)
+- **Format:** HTML (requires parsing, no JSON API)
 
 ### Minimal Request
 
@@ -48,67 +48,67 @@ curl -s \
 
 ## Integration Strategy
 
-### Bagaimana AllStats Melengkapi WebAPI BPS
+### How AllStats Complements BPS WebAPI
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    MCP Server BPS                       │
+│                  BPS MCP Server                          │
 │                                                         │
 │  ┌──────────────────┐    ┌────────────────────────┐     │
-│  │   WebAPI BPS      │    │  AllStats Search        │     │
+│  │   BPS WebAPI      │    │  AllStats Search        │     │
 │  │   (Primary)       │    │  (Supplementary)        │     │
 │  │                   │    │                          │     │
 │  │  ✅ Structured    │    │  ✅ Full-text search     │     │
-│  │     data (JSON)   │    │     dalam publikasi      │     │
+│  │     data (JSON)   │    │     inside publications  │     │
 │  │  ✅ Dynamic       │    │  ✅ Unified search       │     │
-│  │     tables        │    │     semua tipe konten    │     │
-│  │  ✅ Ekspor/Impor  │    │  ✅ Tanpa API key        │     │
-│  │  ✅ Sensus data   │    │  ✅ Filter wilayah       │     │
-│  │  ✅ SIMDASI       │    │     lengkap (550+)       │     │
+│  │     tables        │    │     all content types    │     │
+│  │  ✅ Export/Import │    │  ✅ No API key           │     │
+│  │  ✅ Census data   │    │  ✅ Complete region      │     │
+│  │  ✅ SIMDASI       │    │     filter (550+)        │     │
 │  │  ❌ Full-text     │    │  ❌ Structured data      │     │
-│  │     search PDF    │    │  ❌ Bisa berubah         │     │
+│  │     PDF search    │    │  ❌ May change           │     │
 │  └──────────────────┘    └────────────────────────┘     │
 │                                                         │
 │  Tool routing:                                          │
-│  1. "cari data inflasi" → WebAPI (structured data)      │
-│  2. "cari di publikasi" → AllStats Deep Search           │
-│  3. "temukan publikasi" → AllStats Search                │
-│  4. WebAPI gagal/kosong → Fallback ke AllStats Search     │
+│  1. "find inflation data" → WebAPI (structured data)    │
+│  2. "search in publication" → AllStats Deep Search      │
+│  3. "find publications" → AllStats Search               │
+│  4. WebAPI fails/empty → Fallback to AllStats Search    │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Kapan Pakai AllStats vs WebAPI
+### When to Use AllStats vs WebAPI
 
-| Use Case | Tool | Alasan |
+| Use Case | Tool | Reason |
 |----------|------|--------|
-| Query data angka/tabel (inflasi 2024, PDRB, dll) | **WebAPI** `list/model/data` | Structured JSON, bisa filter variabel/periode |
-| Cari publikasi berdasarkan topik | **AllStats** `search` | Lebih lengkap, support semua tipe konten |
-| Cari teks di dalam PDF publikasi | **AllStats** `deep_search` | **Hanya tersedia di sini** |
-| List tabel statis per domain | **WebAPI** `list/model/statictable` | Structured, ada Excel download |
-| Cari data ekspor-impor | **WebAPI** `dataexim` | Endpoint khusus dengan filter HS code |
-| Discovery — user belum tahu apa yang dicari | **AllStats** `search` | Broad search, mirip Google |
-| Fallback saat WebAPI kosong | **AllStats** `search` | Backup plan |
+| Query numeric/table data (inflation 2024, GDP, etc.) | **WebAPI** `list/model/data` | Structured JSON, filterable by variable/period |
+| Find publications by topic | **AllStats** `search` | More complete, supports all content types |
+| Search text inside PDF publications | **AllStats** `deep_search` | **Only available here** |
+| List static tables per domain | **WebAPI** `list/model/statictable` | Structured, has Excel download |
+| Search export-import data | **WebAPI** `dataexim` | Dedicated endpoint with HS code filter |
+| Discovery — user doesn't know what they're looking for | **AllStats** `search` | Broad search, like Google |
+| Fallback when WebAPI returns empty | **AllStats** `search` | Backup plan |
 
 ### Recommended Tool Priority
 
 ```typescript
-// Di MCP server handler
+// In MCP server handler
 async function handleQuery(query: string, intent: string) {
   switch (intent) {
     case "structured_data":
-      // Prioritas: WebAPI → fallback AllStats
+      // Priority: WebAPI → fallback AllStats
       return await tryWebAPI(query) || await allstatsSearch(query);
 
     case "find_publication":
-      // Langsung AllStats — lebih kaya
+      // Direct AllStats — richer results
       return await allstatsSearch(query, { content: "publication" });
 
     case "search_inside_pdf":
-      // Hanya AllStats bisa
+      // Only AllStats can do this
       return await allstatsDeepSearch(query, pubId);
 
     case "discovery":
-      // AllStats lebih cocok untuk broad search
+      // AllStats is better for broad search
       return await allstatsSearch(query);
 
     default:
@@ -131,64 +131,64 @@ https://searchengine.web.bps.go.id/search
 
 | Parameter | Type     | Required | Default   | Description |
 |-----------|----------|----------|-----------|-------------|
-| `q`       | `string` | ✅       | —         | Kata kunci pencarian |
-| `content` | `string` | ❌       | `all`     | Filter tipe konten |
-| `page`    | `number` | ❌       | `1`       | Nomor halaman (10 results per page) |
-| `title`   | `number` | ❌       | `0`       | `0` = semua field, `1` = judul saja |
-| `mfd`     | `string` | ❌       | `0000`    | Kode wilayah MFD |
-| `from`    | `string` | ❌       | `all`     | Tahun mulai (`all` atau `2020`) |
-| `to`      | `string` | ❌       | `all`     | Tahun sampai (`all` atau `2024`) |
-| `sort`    | `string` | ❌       | `terbaru` | `terbaru` (newest) atau `relevansi` |
+| `q`       | `string` | ✅       | —         | Search keyword |
+| `content` | `string` | ❌       | `all`     | Content type filter |
+| `page`    | `number` | ❌       | `1`       | Page number (10 results per page) |
+| `title`   | `number` | ❌       | `0`       | `0` = all fields, `1` = title only |
+| `mfd`     | `string` | ❌       | `0000`    | MFD region code |
+| `from`    | `string` | ❌       | `all`     | Start year (`all` or `2020`) |
+| `to`      | `string` | ❌       | `all`     | End year (`all` or `2024`) |
+| `sort`    | `string` | ❌       | `terbaru` | `terbaru` (newest) or `relevansi` |
 
 ### Content Types (Verified)
 
-| Value          | Label UI          | Icon                         | Badge Color |
+| Value          | UI Label          | Icon                         | Badge Color |
 |----------------|-------------------|------------------------------|-------------|
-| `all`          | Semua             | `bi-grid-1x2-fill`          | —           |
-| `publication`  | Publikasi         | `bi-book-fill`               | `indigo`    |
-| `table`        | Tabel             | `bi-file-spreadsheet-fill`   | `teal`      |
+| `all`          | All               | `bi-grid-1x2-fill`          | —           |
+| `publication`  | Publication       | `bi-book-fill`               | `indigo`    |
+| `table`        | Table             | `bi-file-spreadsheet-fill`   | `teal`      |
 | `pressrelease` | BRS               | `bi-clipboard2-data`         | —           |
-| `infographic`  | Infografis        | `bi-image`                   | —           |
-| `microdata`    | Data Mikro        | `bi-folder`                  | —           |
-| `news`         | Berita Kegiatan   | `bi-file-earmark-richtext`   | —           |
+| `infographic`  | Infographic       | `bi-image`                   | —           |
+| `microdata`    | Microdata         | `bi-folder`                  | —           |
+| `news`         | News              | `bi-file-earmark-richtext`   | —           |
 | `glosarium`    | Metadata          | —                            | —           |
 | `kbli2020`     | KBLI 2020         | —                            | —           |
 | `kbli2017`     | KBLI 2017         | —                            | —           |
 | `kbli2015`     | KBLI 2015         | —                            | —           |
 | `kbli2009`     | KBLI 2009         | —                            | —           |
 
-> **Catatan:** Gunakan `table` (bukan `statictable`) untuk parameter URL. Ini mencakup Indikator/tabel dinamis di hasil pencarian.
+> **Note:** Use `table` (not `statictable`) for the URL parameter. This includes dynamic indicators/tables in search results.
 
 ### Domain Codes (MFD) — 550+ Options
 
-Sidebar filter berisi dropdown dengan 550+ wilayah:
+The sidebar filter contains a dropdown with 550+ regions:
 
-| Code   | Wilayah                    |
-|--------|----------------------------|
-| `all`  | Semua Wilayah              |
-| `0000` | BPS Pusat (Nasional)       |
-| `1100` | BPS Provinsi Aceh          |
-| `1101` | BPS Kab. Simeulue          |
-| `1102` | BPS Kab. Aceh Singkil      |
-| `3100` | BPS Provinsi DKI Jakarta   |
-| `3200` | BPS Provinsi Jawa Barat    |
-| `3500` | BPS Provinsi Jawa Timur    |
-| ...    | (2 digit = provinsi, 4 digit = kab/kota) |
+| Code   | Region                    |
+|--------|---------------------------|
+| `all`  | All Regions               |
+| `0000` | BPS National              |
+| `1100` | BPS Aceh Province         |
+| `1101` | BPS Simeulue Regency      |
+| `1102` | BPS Aceh Singkil Regency  |
+| `3100` | BPS DKI Jakarta Province  |
+| `3200` | BPS Jawa Barat Province   |
+| `3500` | BPS Jawa Timur Province   |
+| ...    | (2 digits = province, 4 digits = regency/city) |
 
-> Daftar lengkap bisa di-scrape dari `<select>` di sidebar HTML, atau ambil dari WebAPI: `GET /v1/api/domain/type/all/key/{KEY}`
+> The complete list can be scraped from the `<select>` in the sidebar HTML, or fetched from WebAPI: `GET /v1/api/domain/type/all/key/{KEY}`
 
-### Contoh Request
+### Example Requests
 
 ```bash
-# Semua konten, terbaru
+# All content, newest first
 curl -s -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Chrome/138.0.0.0" \
   "https://searchengine.web.bps.go.id/search?q=statistik+telekomunikasi&content=all&page=1&title=0&mfd=0000&from=all&to=all&sort=terbaru"
 
-# Publikasi saja, relevansi
+# Publications only, by relevance
 curl -s -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Chrome/138.0.0.0" \
   "https://searchengine.web.bps.go.id/search?q=inflasi&content=publication&page=1&title=0&mfd=0000&from=2023&to=2025&sort=relevansi"
 
-# Tabel, Jawa Timur
+# Tables, Jawa Timur
 curl -s -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Chrome/138.0.0.0" \
   "https://searchengine.web.bps.go.id/search?q=PDRB&content=table&page=1&title=0&mfd=3500&from=all&to=all&sort=terbaru"
 ```
@@ -207,35 +207,35 @@ https://searchengine.web.bps.go.id/deep
 
 | Parameter | Type     | Required | Default | Description |
 |-----------|----------|----------|---------|-------------|
-| `q`       | `string` | ✅       | —       | Kata kunci pencarian di dalam dokumen PDF |
+| `q`       | `string` | ✅       | —       | Search keyword inside PDF documents |
 | `id`      | `string` | ✅       | —       | Publication ID (24-char hex) |
-| `content` | `string` | ✅       | —       | Selalu `publication` |
-| `mfd`     | `string` | ✅       | —       | Kode wilayah MFD |
-| `page`    | `number` | ❌       | `1`     | Halaman hasil (bukan halaman PDF) |
+| `content` | `string` | ✅       | —       | Always `publication` |
+| `mfd`     | `string` | ✅       | —       | MFD region code |
+| `page`    | `number` | ❌       | `1`     | Results page (not PDF page) |
 
-### Cara Mendapatkan Publication ID
+### How to Get Publication ID
 
-Publication ID adalah hex string 24 karakter yang bisa didapat dari:
+Publication ID is a 24-character hex string obtainable from:
 
-**1. Dari URL publikasi BPS:**
+**1. From BPS publication URL:**
 ```
 https://www.bps.go.id/publication/2023/08/31/131385d0253c6aae7c7a59fa/statistik-telekomunikasi-indonesia-2022.html
                                              ^^^^^^^^^^^^^^^^^^^^^^^^
-                                             ini publication ID
+                                             this is the publication ID
 ```
 
 **Regex:** `/\/publication\/\d{4}\/\d{2}\/\d{2}\/([a-f0-9]{24})\//`
 
-**2. Dari hasil Search endpoint (content=publication):**
+**2. From Search endpoint results (content=publication):**
 
-Setiap result card publikasi memiliki tombol "Deep Search" dengan link yang mengandung `id`:
+Each publication result card has a "Deep Search" button with a link containing the `id`:
 ```html
 <a href="https://searchengine.web.bps.go.id/deep?q=...&id=f03b39cd9c6caf1bde7b7887&content=publication&mfd=0000&page=1">
   Deep Search
 </a>
 ```
 
-### Contoh Request
+### Example Request
 
 ```bash
 curl -s -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Chrome/138.0.0.0" \
@@ -277,7 +277,7 @@ curl -s -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Chrome/138.0.0.0" \
           <i class="bi bi-buildings"></i> BPS Pusat
         </div>
       </div>
-      <!-- Deep Search button — HANYA untuk publikasi -->
+      <!-- Deep Search button — ONLY for publications -->
       <div class="col-auto border-start">
         <a href="https://searchengine.web.bps.go.id/deep?q=...&id={pub_id}&content=publication&mfd=0000&page=1"
            class="btn btn-sm btn-outline-dark rounded-3 z-2 position-relative">
@@ -308,9 +308,9 @@ curl -s -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Chrome/138.0.0.0" \
 
 | Color | Text | Type |
 |-------|------|------|
-| `text-bg-indigo` | Publikasi | `publication` |
-| `text-bg-teal` | Indikator | `table` |
-| `text-bg-light` | BPS Pusat / BPS Kab. xxx | domain |
+| `text-bg-indigo` | Publication | `publication` |
+| `text-bg-teal` | Indicator | `table` |
+| `text-bg-light` | BPS Central / BPS Kab. xxx | domain |
 
 ### 3.2 Deep Search Result Card (Verified)
 
@@ -322,21 +322,21 @@ curl -s -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Chrome/138.0.0.0" \
   <i class="bi bi-buildings"></i> Badan Pusat Statistik RI
 </p>
 <a href="https://www.bps.go.id/publication/..." class="btn btn-info text-white">
-  Lihat Publikasi
+  View Publication
 </a>
 
 <!-- Total matches -->
-<p>Menampilkan 11 halaman dengan kata kunci "akses internet"</p>
+<p>Showing 11 pages with keyword "akses internet"</p>
 
 <!-- Each match card -->
 <div class="col-lg-6 col-12 card-result card p-0 border-0 rounded-4 mb-2">
   <div class="card-body">
     <div class="d-flex justify-content-between">
-      <h6 class="fw-medium text-dark mb-0">Halaman 74</h6>
+      <h6 class="fw-medium text-dark mb-0">Page 74</h6>
       <a class="linkhalaman"
          data-id="1"
          data-page="74"
-         data-title="Halaman 74">Lihat Detail</a>
+         data-title="Page 74">View Details</a>
     </div>
     <p id="deskripsi-1" class="d-none">
       Ps //W Ww .Bp S.G O.I D ...
@@ -356,11 +356,11 @@ curl -s -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Chrome/138.0.0.0" \
 
 | Data | Selector | Extract |
 |------|----------|---------|
-| Pub title | `h5.card-title.fw-semibold` | text |
+| Publication title | `h5.card-title.fw-semibold` | text |
 | Publisher | `p.card-text` (with `bi-buildings`) | text |
 | Cover | `img.foreground` | `src` |
-| Pub URL | `a.btn-info[href*="publication"]` | `href` |
-| Total | body text | regex `Menampilkan (\d+) halaman` |
+| Publication URL | `a.btn-info[href*="publication"]` | `href` |
+| Total matches | body text | regex `Menampilkan (\d+) halaman` |
 | Container | `div.card-result` | iterate |
 | Page number | `a.linkhalaman` | `data-page` |
 | Excerpt | `p[id^="deskripsi-"]` | text / html |
@@ -700,7 +700,7 @@ async function allstatsDeepSearch(params: {
 ### Workflow 1: Discovery → Deep Search
 
 ```
-User: "Cari data akses internet di Indonesia"
+User: "Find internet access data in Indonesia"
 
 Step 1 → allstats_search({ query: "akses internet", content: "publication" })
   Results:
@@ -712,26 +712,26 @@ Step 2 → allstats_deep_search({
     publication_id: "131385d0253c6aae7c7a59fa"
   })
   Matches:
-    - Hal 74: "Kepemilikan akses internet tertinggi di DKI Jakarta 95,39%"
-    - Hal 63: "66,48% penduduk usia 5+ pernah mengakses internet"
+    - Page 74: "Internet access ownership highest in DKI Jakarta 95.39%"
+    - Page 63: "66.48% of population aged 5+ have accessed the internet"
 ```
 
 ### Workflow 2: WebAPI Fallback
 
 ```
-User: "Cari data kemiskinan Papua 2024"
+User: "Find poverty data for Papua 2024"
 
-Step 1 → WebAPI: list/model/data (domain=9100, keyword=kemiskinan)
+Step 1 → WebAPI: list/model/data (domain=9100, keyword=poverty)
   Result: empty or limited
 
 Step 2 → allstats_search({ query: "kemiskinan Papua", domain: "9100", year_from: "2024" })
-  Result: publications, tables, BRS tentang kemiskinan Papua
+  Result: publications, tables, BRS about Papua poverty
 ```
 
 ### Workflow 3: Parallel Enrichment
 
 ```
-User: "Data inflasi terbaru"
+User: "Latest inflation data"
 
 Parallel:
   A → WebAPI: list/model/data/var/1709 (CPI data, structured JSON)
@@ -746,15 +746,15 @@ Response combines:
 
 ## 7. Comparison: WebAPI vs AllStats
 
-| Aspek | WebAPI BPS | AllStats Search |
-|-------|-----------|-----------------|
+| Aspect | BPS WebAPI | AllStats Search |
+|--------|-----------|-----------------|
 | Base URL | `webapi.bps.go.id` | `searchengine.web.bps.go.id` |
 | Format | JSON | HTML (parsing) |
 | Auth | API Key | User-Agent only |
 | Full-text PDF | ❌ | ✅ Deep Search |
 | Structured data | ✅ | ❌ |
-| Ekspor/Impor | ✅ | ❌ |
-| Sensus | ✅ | ❌ |
+| Export/Import | ✅ | ❌ |
+| Census | ✅ | ❌ |
 | SIMDASI | ✅ | ❌ |
 | Unified search | ❌ | ✅ |
 | Speed | ✅ Fast | ⚠️ Slower |
@@ -765,9 +765,9 @@ Response combines:
 ## 8. Best Practices
 
 ### Rate Limiting & Caching
-- Delay ~500ms-1s antar request
-- Cache publication metadata & deep search results (jarang berubah)
-- Jangan parallel request berlebihan ke AllStats
+- Delay ~500ms-1s between requests
+- Cache publication metadata and deep search results (rarely change)
+- Avoid excessive parallel requests to AllStats
 
 ### Error Handling
 ```typescript
@@ -796,6 +796,6 @@ async function fetchWithRetry(url: string, retries = 3): Promise<string> {
 ```
 
 ### Cloudflare Workers Compatibility
-- `fetch` dengan custom User-Agent ✅ works dari CF Workers
-- `cheerio` ✅ works di CF Workers runtime
-- Jika BPS memperketat → graceful degradation ke WebAPI-only mode
+- `fetch` with custom User-Agent ✅ works from CF Workers
+- `cheerio` ✅ works in CF Workers runtime
+- If BPS tightens security → graceful degradation to WebAPI-only mode

@@ -272,6 +272,119 @@ export interface BpsCensusEvent {
   tahun_kegiatan: number;
 }
 
+/** SIMDASI Area (MFD Code) */
+export interface BpsSimdasiArea {
+  id: string;
+  kode_mfd: string;
+  nama: string;
+  slug: string;
+}
+
+/** SIMDASI Subject */
+export interface BpsSimdasiSubject {
+  id_tabel: string;
+  judul: string;
+  judul_en: string;
+  kode_tabel: string;
+  ketersediaan_tahun: number[];
+  bab: string;
+  bab_en: string;
+  subject: string;
+  subject_en: string;
+  mms_id: string;
+  mms_subject: string;
+  tabel: number[];
+}
+
+/** SIMDASI Master Table */
+export interface BpsSimdasiMasterTable {
+  id_tabel: string;
+  judul: string;
+  judul_en: string;
+  kode_tabel: string;
+  tahun: number[];
+}
+
+/** SIMDASI Table */
+export interface BpsSimdasiTable {
+  id_tabel: string;
+  judul: string;
+  judul_en: string;
+  kode_tabel: string;
+  ketersediaan_tahun: number[];
+  bab: string;
+  bab_en: string;
+}
+
+/** SIMDASI Table Detail */
+export interface BpsSimdasiTableDetail {
+  id_tabel: string;
+  judul: string;
+  judul_en: string;
+  kode_tabel: string;
+  tahun: number;
+  data: Array<{
+    label: string;
+    nilai: number | string | null;
+    satuan?: string;
+  }>;
+}
+
+/** SDGs Goal */
+export interface BpsSdgsGoal {
+  goal_id: number;
+  goal_name: string;
+  goal_name_en: string;
+  goal_icon: string;
+}
+
+/** SDGs Variable/Indicator */
+export interface BpsSdgsVariable {
+  var_id: number;
+  goal_id: number;
+  title: string;
+  title_en?: string;
+  sub_id?: number;
+  sub_name?: string;
+  unit?: string;
+}
+
+/** SDDS Variable/Indicator */
+export interface BpsSddsVariable {
+  var_id: number;
+  title: string;
+  title_en?: string;
+  model: "data" | "statictable";
+  sub_id?: number;
+  sub_name?: string;
+  unit?: string;
+}
+
+/** Statistical Classification Entry (KBLI/KBKI list) */
+export interface BpsClassificationEntry {
+  id: string;
+  kode: string;
+  judul: string;
+  title?: string;
+  level?: string;
+  url?: string;
+}
+
+/** Statistical Classification Detail */
+export interface BpsClassificationDetail {
+  id: string;
+  kode: string;
+  judul: string;
+  title?: string;
+  deskripsi: string;
+  description?: string;
+  level: string;
+  sebelumnya?: string[];
+  turunan?: Array<{ kode: string; judul: string; title?: string }>;
+  url?: string;
+  tags?: string[];
+}
+
 /** Census Topic */
 export interface BpsCensusTopic {
   id: number;
@@ -279,4 +392,38 @@ export interface BpsCensusTopic {
   topic: string;
   id_kegiatan: string;
   kegiatan: string;
+}
+
+/** Census Event Area */
+export interface BpsCensusArea {
+  id: string;
+  kode_mfd: string;
+  nama: string;
+  slug: string;
+}
+
+/** Census Dataset */
+export interface BpsCensusDataset {
+  id: string;
+  id_topik: number;
+  topic: string;
+  id_kegiatan: string;
+  nama: string;
+  deskripsi: string;
+}
+
+/** Census Data Record */
+export interface BpsCensusDataRecord {
+  id_wilayah: string;
+  kode_wilayah: string;
+  nama_wilayah: string;
+  level_wilayah?: string;
+  id_indikator: string;
+  nama_indikator: string;
+  kategori_1?: string;
+  kategori_2?: string;
+  kategori_3?: string;
+  kategori_4?: string;
+  period: string;
+  nilai: number | string | null;
 }

@@ -1,23 +1,23 @@
-# Optimasi `find_data` — Persistent Learning Store
+# Optimizing `find_data` — Persistent Learning Store
 
-> **Lihat juga:** [SMART-TOOLS.md](./SMART-TOOLS.md) untuk dokumentasi logic `get_trend`, `compare_data`, dan `get_ranking`.
+> **See also:** [SMART-TOOLS.md](./SMART-TOOLS.md) for documentation on `get_trend`, `compare_data`, and `get_ranking`.
 
-## Latar Belakang
+## Background
 
-### Masalah
+### Problem
 
-Ketika AI model (terutama free tier seperti Sonnet 4.6) menerima pertanyaan seperti "berapa angka kemiskinan Jawa Timur", flow yang terjadi:
+When an AI model (especially free tier like Sonnet 4.6) receives a question like "what is the poverty rate in East Java", the following flow occurs:
 
-1. AI call `find_data` → internal: 5-9 HTTP requests ke BPS API
-2. AI merasa hasil kurang → call `list_strategic_indicators`
-3. AI coba lagi → call `get_dynamic_data`
-4. AI coba lagi → call `find_variable`, `search`, dst.
+1. AI calls `find_data` → internally: 5-9 HTTP requests to BPS API
+2. AI feels the result is insufficient → calls `list_strategic_indicators`
+3. AI tries again → calls `get_dynamic_data`
+4. AI tries again → calls `find_variable`, `search`, etc.
 
-**Total: 12 tool calls, sangat lambat.**
+**Total: 12 tool calls, very slow.**
 
-### Akar Masalah
+### Root Cause
 
-1. **`find_data` internal flow terlalu banyak HTTP calls:**
+1. **`find_data` internal flow has too many HTTP calls:**
    - resolve domain (1 call)
    - list subjects (1 call)
    - list variables per subject (1-5 calls)
@@ -25,40 +25,40 @@ Ketika AI model (terutama free tier seperti Sonnet 4.6) menerima pertanyaan sepe
    - get dynamic data (1 call)
    = 5-9 HTTP requests per invocation
 
-2. **Learning cache saat ini (`learn:` prefix) nebeng di `ICacheProvider`:**
-   - Di stdio: `InMemoryCache` → hilang tiap restart
-   - Di Workers: `KVCache` → persistent, tapi tercampur dengan API cache
+2. **Current learning cache (`learn:` prefix) piggybacks on `ICacheProvider`:**
+   - On stdio: `InMemoryCache` → lost on every restart
+   - On Workers: `KVCache` → persistent, but mixed with API cache
 
-3. **`cache_clear` tool menghapus semua** termasuk learned mappings (di stdio)
+3. **`cache_clear` tool clears everything** including learned mappings (on stdio)
 
 ### Target
 
-- Query populer: **1-2 HTTP calls** (resolve domain + get data)
-- Query baru (cold): tetap 5-9 calls, tapi **auto-learn** untuk next time
-- Learning **survive restart** dan **tidak terhapus** oleh `cache_clear`
+- Popular queries: **1-2 HTTP calls** (resolve domain + get data)
+- New queries (cold): still 5-9 calls, but **auto-learn** for next time
+- Learning **survives restart** and **is not cleared** by `cache_clear`
 
 ---
 
-## Arsitektur
+## Architecture
 
-### Layer Lookup (Prioritas Tinggi ke Rendah)
+### Layer Lookup (High to Low Priority)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ Layer 1: KNOWN_VARS (hardcoded)                         │
-│ → Topik populer dengan var_id stabil                    │
+│ → Popular topics with stable var_id                    │
 │ → Instant, zero I/O                                    │
-│ → Contoh: "miskin" → var_id 184                        │
+│ → Example: "miskin" → var_id 184                        │
 ├─────────────────────────────────────────────────────────┤
 │ Layer 2: Persistent Learning Store                      │
-│ → Learned dari successful queries sebelumnya            │
+│ → Learned from previous successful queries            │
 │ → 1 read I/O (file/KV)                                │
-│ → Shared antar semua user                              │
+│ → Shared among all users                              │
 ├─────────────────────────────────────────────────────────┤
 │ Layer 3: Full Search Flow (existing)                    │
 │ → list_subjects → list_variables → scoring             │
 │ → 5-9 HTTP calls                                       │
-│ → Hasil disimpan ke Layer 2 untuk next time            │
+│ → Results saved to Layer 2 for next time            │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -68,15 +68,15 @@ Ketika AI model (terutama free tier seperti Sonnet 4.6) menerima pertanyaan sepe
 ┌──────────────────────────────────────────────────┐
 │ ICacheProvider (existing, unchanged)             │
 │ → API response cache                             │
-│ → Short TTL, boleh hilang, boleh di-clear        │
+│ → Short TTL, can be lost, can be cleared        │
 │ → Keys: "subjects:3500", "variables:3500:23"     │
 └──────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────┐
-│ IPersistentStore (baru)                          │
+│ IPersistentStore (new)                          │
 │ → Learned variable mappings                      │
-│ → Long-lived, TIDAK ikut cache_clear             │
-│ → Survive restart                                │
+│ → Long-lived, NOT affected by cache_clear             │
+│ → Survives restart                                │
 │ → Keys: "miskin:3500" → {var_id, title, ...}     │
 └──────────────────────────────────────────────────┘
 ```
@@ -90,54 +90,54 @@ interface IPersistentStore {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<void>;
   delete(key: string): Promise<void>;
-  // Tidak ada clear() — by design, data ini tidak boleh bulk-delete
+  // No clear() — by design, this data should not be bulk-deleted
 }
 ```
 
-Tidak ada TTL — data valid sampai terbukti salah (var_id return empty data).
+No TTL — data is valid until proven wrong (var_id returns empty data).
 
 ---
 
-## Implementasi Per Environment
+## Per-Environment Implementation
 
-### stdio (lokal): `FileStore`
+### stdio (local): `FileStore`
 
 ```
 Storage: ~/.bps-mcp/learned-vars.json
 Format: { "miskin:3500": "{\"var_id\":184,...}", ... }
 ```
 
-- Read: load file ke memory saat init, serve dari memory
-- Write: update memory + flush ke disk (debounced, max 1 write per 5 detik)
-- Survive restart: ya (file-based)
+- Read: load file into memory at init, serve from memory
+- Write: update memory + flush to disk (debounced, max 1 write per 5 seconds)
+- Survive restart: yes (file-based)
 - Concurrency: single process, no issue
 
 ### Cloudflare Workers: `KVStore`
 
 ```
-Storage: KV Namespace (bisa BPS_CACHE yang sama, prefix "learn:")
-TTL: none (atau sangat panjang, 365 hari)
+Storage: KV Namespace (can be the same BPS_CACHE, prefix "learn:")
+TTL: none (or very long, 365 days)
 ```
 
-- Read: KV get (sudah cached di edge ~60s)
-- Write: KV put tanpa TTL
-- Survive restart: ya (KV persistent)
-- Concurrency: eventually consistent (fine untuk learning)
+- Read: KV get (already cached at edge ~60s)
+- Write: KV put without TTL
+- Survive restart: yes (KV persistent)
+- Concurrency: eventually consistent (fine for learning)
 
 ---
 
 ## KNOWN_VARS — Hardcoded Defaults
 
-Topik populer dengan var_id yang stabil bertahun-tahun di BPS:
+Popular topics with stable var_id over the years at BPS:
 
 ```typescript
 const KNOWN_VARS: Record<string, { var_id: number; label: string }[]> = {
-  // Kemiskinan
+  // Poverty
   miskin:        [{ var_id: 184, label: "Persentase Penduduk Miskin" },
                   { var_id: 183, label: "Jumlah Penduduk Miskin (ribu)" }],
   kemiskinan:    [{ var_id: 184, label: "Persentase Penduduk Miskin" }],
 
-  // Pengangguran
+  // Unemployment
   pengangguran:  [{ var_id: 543, label: "Tingkat Pengangguran Terbuka (%)" },
                   { var_id: 674, label: "Jumlah Pengangguran" }],
   tpt:           [{ var_id: 543, label: "Tingkat Pengangguran Terbuka (%)" }],
@@ -145,29 +145,29 @@ const KNOWN_VARS: Record<string, { var_id: number; label: string }[]> = {
   // IPM
   ipm:           [{ var_id: 413, label: "[Metode Baru] Indeks Pembangunan Manusia (IPM)" }],
 
-  // Ketimpangan
+  // Inequality
   gini:          [{ var_id: 98, label: "Gini Rasio" }],
 
-  // Kependudukan
+  // Population
   penduduk:      [{ var_id: 1452, label: "Jumlah Penduduk" }],
 
-  // Agama — tidak ada var_id stabil, gunakan static table fallback
-  // Inflasi — tidak ada var_id stabil, gunakan strategic indicators
-  // PDRB — bervariasi per domain, gunakan strategic indicators
+  // Religion — no stable var_id, use static table fallback
+  // Inflation — no stable var_id, use strategic indicators
+  // PDRB — varies per domain, use strategic indicators
 };
 ```
 
-**Catatan:** KNOWN_VARS hanya untuk keyword yang 100% stabil. Topik yang var_id-nya bervariasi per domain (PDRB, inflasi) tetap lewat search flow atau strategic indicators.
+**Note:** KNOWN_VARS is only for 100% stable keywords. Topics whose var_id varies per domain (PDRB, inflation) still go through search flow or strategic indicators.
 
 ---
 
-## Flow `find_data` (Setelah Optimasi)
+## `find_data` Flow (After Optimization)
 
 ```
 Input: query="angka kemiskinan", region="Jawa Timur", year="2023"
 
 1. Resolve domain
-   "Jawa Timur" → domain "3500" (via DomainResolver, sudah cached)
+   "Jawa Timur" → domain "3500" (via DomainResolver, already cached)
 
 2. Normalize keyword
    "angka kemiskinan" → normalize → "kemiskinan"
@@ -177,29 +177,29 @@ Input: query="angka kemiskinan", region="Jawa Timur", year="2023"
    "miskin" found → var_id = 184
    → SKIP to step 6
 
-4. Layer 2: Check Persistent Store (jika Layer 1 miss)
+4. Layer 2: Check Persistent Store (if Layer 1 misses)
    store.get("miskin:3500") → {var_id: 184, ...}
    → SKIP to step 6
 
-5. Layer 3: Full Search (jika Layer 1 & 2 miss)
+5. Layer 3: Full Search (if Layer 1 & 2 miss)
    → list_subjects → list_variables → scoring
    → bestVar = {var_id: 184, ...}
    → SAVE to persistent store: store.set("miskin:3500", ...)
    → PUSH to Worker (background)
 
-6. Resolve period (jika year diberikan)
+6. Resolve period (if year is provided)
    a. Check period store: "period:184:3500:2023"
       → Hit: periodParam = "171" (0 HTTP calls)
       → Miss: call list_periods → find match → save to period store
-   b. Jika year tidak diberikan → periodParam = undefined (data terbaru)
+   b. If year is not provided → periodParam = undefined (latest data)
 
 7. Get data
    client.getDynamicData("3500", "184", periodParam)
 
 8. Validate & return
-   - Jika data kosong → invalidate var mapping + period mapping
-     → fallback ke Layer 3 (full search)
-   - Jika data ada → format & return
+   - If data is empty → invalidate var mapping + period mapping
+     → fallback to Layer 3 (full search)
+   - If data exists → format & return
 ```
 
 ### HTTP Calls Summary
@@ -210,13 +210,13 @@ Input: query="angka kemiskinan", region="Jawa Timur", year="2023"
 | Known var + unknown period | 2 (list_periods + get_dynamic_data) |
 | Known var + no year param | 1 (get_dynamic_data) |
 | Unknown var (cold) | 5-9 (full search + get_dynamic_data) |
-| Unknown var (cold) + learn | Same, tapi next time = 1-2 calls |
+| Unknown var (cold) + learn | Same, but next time = 1-2 calls |
 
 ---
 
-## Self-Healing: Invalidasi Otomatis
+## Self-Healing: Automatic Invalidation
 
-Jika var_id yang di-learn ternyata return data kosong:
+If a learned var_id returns empty data:
 
 ```typescript
 const result = await client.getDynamicData(domain, varId, period);
@@ -229,13 +229,13 @@ if (!result.datacontent || Object.keys(result.datacontent).length === 0) {
 }
 ```
 
-Ini menangani kasus var_id berubah — otomatis self-correct tanpa manual intervention.
+This handles cases where var_id changes — automatically self-corrects without manual intervention.
 
 ---
 
 ## Keyword Normalization
 
-Untuk meningkatkan hit rate, normalize query sebelum lookup menggunakan **stopwords-iso**:
+To improve hit rate, normalize query before lookup using **stopwords-iso**:
 
 ```typescript
 // stopwords-iso: 758 Indonesian + 1298 English stopwords
@@ -247,7 +247,7 @@ const ALL_STOPWORDS = new Set([
 ]);
 ```
 
-Contoh:
+Example:
 - "berapa statistik terkait pemeluk agama di kab jombang" → "agama jombang"
 - "angka kemiskinan terbaru di indonesia" → "kemiskinan indonesia"
 - "jumlah penduduk berdasarkan agama" → "penduduk agama"
@@ -255,71 +255,71 @@ Contoh:
 
 ### Resolve Canonical (Prefer Last Match)
 
-Untuk query dengan multiple keywords, prefer kata yang lebih spesifik (terakhir):
+For queries with multiple keywords, prefer the more specific word (last):
 
 ```typescript
-"penduduk agama" → check "agama" dulu → KEYWORD_ALIASES["agama"] → "agama"
-// Bukan "penduduk" yang menang, karena "agama" lebih spesifik untuk konteks ini
+"penduduk agama" → check "agama" first → KEYWORD_ALIASES["agama"] → "agama"
+// "penduduk" does not win, because "agama" is more specific in this context
 ```
 
 ---
 
-## Hubungan dengan Cache Existing
+## Relationship with Existing Cache
 
-| Aspek | `ICacheProvider` (existing) | `IPersistentStore` (baru) |
+| Aspect | `ICacheProvider` (existing) | `IPersistentStore` (new) |
 |-------|----------------------------|---------------------------|
-| Tujuan | Cache API responses | Learn variable mappings |
-| Lifetime | Short (TTL per tipe) | Permanent (sampai invalidasi) |
-| Survive restart | Tidak (stdio) / Ya (KV) | Ya (selalu) |
-| `cache_clear` | Dihapus semua | **Tidak terpengaruh** |
+| Purpose | Cache API responses | Learn variable mappings |
+| Lifetime | Short (TTL per type) | Permanent (until invalidation) |
+| Survive restart | No (stdio) / Yes (KV) | Yes (always) |
+| `cache_clear` | All deleted | **Not affected** |
 | Data | Raw API responses | `{var_id, title, sub_name, hitCount, lastUsed}` |
 | Scope | Per-session performance | Cross-session intelligence |
 
-### Migrasi
+### Migration
 
-- Hapus penggunaan `cache.set(cacheKey, ...)` dengan prefix `learn:` di `find_data`
-- Ganti dengan `store.set(key, ...)` via `IPersistentStore`
-- `ICacheProvider` tetap dipakai untuk API response caching (unchanged)
-
----
-
-## Dampak pada Tool Lain
-
-- `cache_clear`: tetap clear API cache saja, learning store tidak terpengaruh
-- `find_variable`: tidak berubah (tetap full search, tapi bisa juga benefit dari learning di masa depan)
-- `get_dynamic_data`: tidak berubah (low-level tool)
+- Remove usage of `cache.set(cacheKey, ...)` with `learn:` prefix in `find_data`
+- Replace with `store.set(key, ...)` via `IPersistentStore`
+- `ICacheProvider` remains used for API response caching (unchanged)
 
 ---
 
-## Metrik Keberhasilan
+## Impact on Other Tools
 
-| Metrik | Sebelum | Target |
+- `cache_clear`: only clears API cache, learning store is not affected
+- `find_variable`: unchanged (still full search, but can also benefit from learning in the future)
+- `get_dynamic_data`: unchanged (low-level tool)
+
+---
+
+## Success Metrics
+
+| Metric | Before | Target |
 |--------|---------|--------|
-| Tool calls per query (topik populer) | 12 | 1-2 |
+| Tool calls per query (popular topics) | 12 | 1-2 |
 | HTTP calls internal find_data (known var + known period) | 5-9 | **1** |
 | HTTP calls internal find_data (known var, unknown period) | 5-9 | **2** |
-| HTTP calls internal find_data (new topic) | 5-9 | 5-9 (tapi learn) |
-| Repeat query speed | Sama | Instan |
-| Cross-user benefit | Tidak ada | Shared via Worker sync |
+| HTTP calls internal find_data (new topic) | 5-9 | 5-9 (but learns) |
+| Repeat query speed | Same | Instant |
+| Cross-user benefit | None | Shared via Worker sync |
 
 ---
 
-## Fuzzy Keyword Matching di Store
+## Fuzzy Keyword Matching in Store
 
-### Masalah
+### Problem
 
-User bisa mengetik variasi yang berbeda untuk topik yang sama:
+Users might type different variations for the same topic:
 - "miskin", "kemiskinan", "penduduk miskin", "angka kemiskinan"
 - "pengangguran", "nganggur", "tpt", "pengangguran terbuka"
 
-Tanpa fuzzy matching, setiap variasi harus punya entry sendiri di store. Tidak efisien.
+Without fuzzy matching, each variation must have its own entry in the store. Not efficient.
 
-### Solusi: Keyword Stemming + Alias Groups
+### Solution: Keyword Stemming + Alias Groups
 
 ```typescript
-// Alias groups — variasi keyword yang merujuk ke topik sama
+// Alias groups — keyword variations referring to the same topic
 const KEYWORD_ALIASES: Record<string, string> = {
-  // Kemiskinan
+  // Poverty
   "miskin": "miskin",
   "kemiskinan": "miskin",
   "penduduk miskin": "miskin",
@@ -327,7 +327,7 @@ const KEYWORD_ALIASES: Record<string, string> = {
   "orang miskin": "miskin",
   "poverty": "miskin",
 
-  // Pengangguran
+  // Unemployment
   "pengangguran": "pengangguran",
   "nganggur": "pengangguran",
   "tpt": "pengangguran",
@@ -344,13 +344,13 @@ const KEYWORD_ALIASES: Record<string, string> = {
   "ketimpangan": "gini",
   "inequality": "gini",
 
-  // Penduduk
+  // Population
   "penduduk": "penduduk",
   "populasi": "penduduk",
   "population": "penduduk",
   "jumlah penduduk": "penduduk",
 
-  // Agama
+  // Religion
   "agama": "agama",
   "religi": "agama",
   "keagamaan": "agama",
@@ -359,7 +359,7 @@ const KEYWORD_ALIASES: Record<string, string> = {
 };
 ```
 
-### Flow dengan Fuzzy Matching
+### Flow with Fuzzy Matching
 
 ```
 Input: "angka kemiskinan jawa timur"
@@ -372,7 +372,7 @@ Input: "angka kemiskinan jawa timur"
 
 ### Fallback: Substring Matching
 
-Jika tidak ada di alias table, coba substring match terhadap keys di store:
+If not found in alias table, try substring match against store keys:
 
 ```typescript
 function findInStore(keyword: string, domain: string, store: Map<string, string>): string | null {
@@ -400,26 +400,26 @@ function findInStore(keyword: string, domain: string, store: Map<string, string>
 }
 ```
 
-### Kapan Alias Table Diupdate
+### When Alias Table is Updated
 
-- Hardcoded untuk topik umum (sudah cukup untuk 80% kasus)
-- Bisa ditambah dari learned data: jika "penduduk miskin:3500" dan "miskin:3500" resolve ke var_id yang sama, otomatis jadi alias
+- Hardcoded for common topics (sufficient for 80% of cases)
+- Can be augmented from learned data: if "penduduk miskin:3500" and "miskin:3500" resolve to the same var_id, automatically becomes an alias
 
 ---
 
 ## Period Learning
 
-### Masalah
+### Problem
 
-Setiap kali user minta data tahun tertentu, `find_data` harus call `list_periods` untuk translate "2023" → period_id. Ini 1 HTTP call tambahan yang sebenarnya hasilnya stabil (period_id untuk tahun tertentu jarang berubah).
+Every time a user requests data for a specific year, `find_data` must call `list_periods` to translate "2023" → period_id. This is 1 additional HTTP call whose result is actually stable (period_id for a given year rarely changes).
 
-### Solusi: Simpan Period Mapping di Persistent Store
+### Solution: Store Period Mapping in Persistent Store
 
 ```typescript
 // Key format: "period:{var_id}:{domain}:{year}"
 // Value: period_id (string)
 
-// Contoh:
+// Example:
 // "period:184:3500:2023" → "171"
 // "period:184:3500:2022" → "170"
 // "period:543:0000:2023" → "171"
@@ -437,18 +437,18 @@ Input: find_data(query="kemiskinan", region="Jawa Timur", year="2023")
 3. get_dynamic_data("3500", "184", "171")
 ```
 
-### Dampak
+### Impact
 
-- **Best case (known var + known period):** 1 HTTP call (hanya get_dynamic_data)
-- Sebelumnya: 2 calls (list_periods + get_dynamic_data)
-- Saving: 1 HTTP call per request dengan year parameter
+- **Best case (known var + known period):** 1 HTTP call (only get_dynamic_data)
+- Previously: 2 calls (list_periods + get_dynamic_data)
+- Saving: 1 HTTP call per request with year parameter
 
-### Invalidasi
+### Invalidation
 
-Period IDs sangat stabil di BPS (tahun 2023 selalu period_id yang sama untuk variabel tertentu). Tapi untuk safety:
-- Jika get_dynamic_data return kosong dengan learned period_id → delete period mapping → retry dengan list_periods
+Period IDs are very stable at BPS (year 2023 always has the same period_id for a given variable). But for safety:
+- If get_dynamic_data returns empty with learned period_id → delete period mapping → retry with list_periods
 
-### Data Structure di Store
+### Data Structure in Store
 
 ```typescript
 interface LearnedPeriod {
@@ -457,27 +457,27 @@ interface LearnedPeriod {
   learnedAt: number; // timestamp
 }
 
-// Disimpan di IPersistentStore yang sama, dengan prefix "period:"
+// Stored in the same IPersistentStore, with prefix "period:"
 // Key: "period:{var_id}:{domain}:{year}"
 // Value: JSON string of LearnedPeriod
 ```
 
 ---
 
-## Sync Architecture: Worker sebagai Central Brain
+## Sync Architecture: Worker as Central Brain
 
-### Masalah
+### Problem
 
-- stdio lokal: learning hilang tiap restart (jika hanya file lokal)
-- Setiap instance belajar sendiri-sendiri, tidak share knowledge
+- stdio local: learning lost on every restart (if using only local files)
+- Each instance learns on its own, does not share knowledge
 
-### Solusi: Worker sebagai Central Store + Sync
+### Solution: Worker as Central Store + Sync
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Cloudflare Worker (KV Namespace: BPS_LEARNING)              │
 │ → Single source of truth                                    │
-│ → Semua user (remote + lokal) kontribusi & consume          │
+│ → All users (remote + local) contribute & consume          │
 ├─────────────────────────────────────────────────────────────┤
 │ GET  /api/learned-vars → return all learned mappings        │
 │ POST /api/learned-vars → add/update mapping                 │
@@ -486,35 +486,35 @@ interface LearnedPeriod {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Sync Flow (stdio lokal)
+### Sync Flow (stdio local)
 
 ```
 [Server start]
   1. Load local FileStore (instant, offline-capable)
-  2. Background: fetch GET /api/learned-vars dari Worker
+  2. Background: fetch GET /api/learned-vars from Worker
   3. Merge: remote data + local data → update FileStore
-  → Sekarang punya semua knowledge dari semua user
+  → Now has all knowledge from all users
 
-[Query berhasil via full search]
-  1. Simpan ke local FileStore (instant)
-  2. Background: POST /api/learned-vars ke Worker
-  → Next user (remote atau lokal lain) juga dapat benefit
+[Query succeeds via full search]
+  1. Save to local FileStore (instant)
+  2. Background: POST /api/learned-vars to Worker
+  → Next user (remote or other local) also benefits
 
-[Worker query berhasil (remote user)]
-  1. Simpan ke KV langsung
-  2. Lokal akan dapat saat next sync (server restart atau periodik)
+[Worker query succeeds (remote user)]
+  1. Save to KV directly
+  2. Local will get it on next sync (server restart or periodic)
 ```
 
 ### Sync Flow (Worker)
 
 ```
 [Query masuk]
-  1. Check KV langsung (sudah persistent)
-  2. Jika miss → full search → save ke KV
-  → Otomatis available untuk semua user
+  1. Check KV directly (already persistent)
+  2. If miss → full search → save to KV
+  → Automatically available to all users
 ```
 
-### API Endpoints di Worker
+### API Endpoints on Worker
 
 ```typescript
 // GET /api/learned-vars
@@ -534,49 +534,49 @@ interface LearnedPeriod {
 
 ### Offline Resilience
 
-- Jika Worker unreachable saat sync → gunakan local FileStore saja
-- Jika Worker unreachable saat push → queue locally, retry next start
-- FileStore selalu sebagai fallback → server tetap berfungsi offline
+- If Worker is unreachable during sync → use local FileStore only
+- If Worker is unreachable during push → queue locally, retry on next start
+- FileStore always as fallback → server continues to function offline
 
 ### Security
 
-- Endpoint `/api/learned-vars` bisa public read (data BPS publik)
-- Write bisa dibatasi dengan simple shared secret atau rate limit
-- Atau: hanya accept write dari authenticated MCP sessions
+- Endpoint `/api/learned-vars` can be public read (public BPS data)
+- Write can be restricted with a simple shared secret or rate limit
+- Or: only accept writes from authenticated MCP sessions
 
 ---
 
 ## Static Table Fallback
 
-### Masalah
+### Problem
 
-Beberapa topik (seperti data agama) tidak tersedia sebagai dynamic data (time-series) di BPS WebAPI, tapi hanya sebagai **static table** (tabel HTML yang sudah di-format).
+Some topics (like religion data) are not available as dynamic data (time-series) in the BPS WebAPI, but only as **static tables** (pre-formatted HTML tables).
 
-### Solusi: Dual Fallback di `find_data`
+### Solution: Dual Fallback in `find_data`
 
-`find_data` sekarang punya 2 titik fallback ke static tables:
+`find_data` now has 2 fallback points to static tables:
 
-**Fallback 1:** Jika `bestVar` null (tidak ketemu variabel sama sekali)
+**Fallback 1:** If `bestVar` is null (no variable found at all)
 ```
 find_data("pemeluk agama", region="kab jombang")
   → normalizeKeyword → "agama"
   → lookupVar → miss (tidak ada di KNOWN_VARS)
-  → fullSearchVar → miss (tidak ada variabel dynamic untuk agama)
+  → fullSearchVar → miss (no dynamic variable for religion)
   → tryStrategicIndicators → miss
   → list_static_tables(domain="3517", keyword="agama")
   → Pick best match → get_static_table() → return HTML table
 ```
 
-**Fallback 2:** Jika `bestVar` ada tapi datacontent kosong
+**Fallback 2:** If `bestVar` exists but datacontent is empty
 ```
 find_data("pemeluk agama", region="kab jombang")
   → bestVar = {var_id: 9999} (found via full search)
-  → getDynamicData → datacontent kosong
+  → getDynamicData → datacontent is empty
   → list_static_tables(domain="3517", keyword="agama")
   → Pick best match → get_static_table() → return HTML table
 ```
 
-### Contoh Query yang Benefit
+### Example Queries that Benefit
 
 | Query | Dynamic Data? | Fallback |
 |-------|---------------|----------|
@@ -587,9 +587,9 @@ find_data("pemeluk agama", region="kab jombang")
 
 ---
 
-## Ide Optimasi Lanjutan (Future)
+## Advanced Optimization Ideas (Future)
 
-1. **Batch learning dari log** — analisis query log, pre-populate persistent store
-2. **Confidence score** — track hit rate per learned mapping, prioritaskan yang sering berhasil
-3. **Preload popular vars** — saat server start, warm up store dengan top-N queries
-4. **Response template** — untuk topik populer, sertakan context yang membuat AI tidak perlu call tool lain
+1. **Batch learning from logs** — analyze query logs, pre-populate persistent store
+2. **Confidence score** — track hit rate per learned mapping, prioritize frequently successful ones
+3. **Preload popular vars** — on server start, warm up store with top-N queries
+4. **Response template** — for popular topics, include context so the AI doesn't need to call other tools

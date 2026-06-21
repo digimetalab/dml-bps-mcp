@@ -11,7 +11,7 @@ MCP (Model Context Protocol) server for BPS (Badan Pusat Statistik) Indonesia of
 
 ## Features
 
-- **39 tools** covering all BPS WebAPI v1 endpoints + AllStats Search + AI-friendly shortcuts
+- **59 tools** covering all BPS WebAPI v1 endpoints + AllStats Search + AI-friendly shortcuts + SIMDASI + SDGs + SDDS + KBLI/KBKI classifications
 - **AI-friendly** — `find_data` tool with automatic intent detection (resolve region → detect intent → find variable → fetch data)
 - **Intent Detection** — automatically detects: single value, comparison, trend, ranking, table/breakdown, publication
 - **Stopwords-ISO** — automatic noise removal for 758 Indonesian + 1298 English words
@@ -173,7 +173,7 @@ File `~/.cursor/mcp.json` or `.vscode/mcp.json`:
 }
 ```
 
-## Tools (39)
+## Tools (59)
 
 ### AI-Friendly Smart Tools (5)
 
@@ -214,13 +214,18 @@ File `~/.cursor/mcp.json` or `.vscode/mcp.json`:
 | `get_infographic` | Get infographic details |
 | `list_news` | List BPS news |
 | `get_news` | Get news details |
+| `list_news_categories` | List BPS news categories |
 | `list_census_events` | List census activities |
 | `list_census_topics` | Census topics per activity |
+| `list_census_areas` | List available areas for a census activity |
+| `list_census_datasets` | List datasets per census activity and topic |
+| `get_census_data` | Fetch actual census data for an activity, area, and dataset |
 | `list_csa_categories` | CSA categories |
 | `list_csa_subjects` | CSA subjects per domain |
 | `list_csa_tables` | CSA tables per subject |
 | `get_csa_table` | Get CSA table details (HTML) |
 | `list_glossary` | Statistics glossary |
+| `get_glossary` | Get detailed definition of a specific glossary term |
 | `search` | Cross-type search (WebAPI + AllStats fallback) |
 | `cache_clear` | Clear cache |
 
@@ -230,6 +235,40 @@ File `~/.cursor/mcp.json` or `.vscode/mcp.json`:
 |------|-------------|
 | `allstats_search` | Unified search across all BPS content (publications, tables, press releases, infographics, microdata, glossary, classifications) |
 | `allstats_deep_search` | Full-text search inside BPS PDF publications — **unique feature, not available via WebAPI** |
+
+### SIMDASI Tools (8)
+
+| Tool | Description |
+|------|-------------|
+| `list_simdasi_provinces` | List 7-digit MFD codes for all provinces (SIMDASI) |
+| `list_simdasi_regencies` | List MFD codes for regencies in a province |
+| `list_simdasi_districts` | List MFD codes for districts in a regency |
+| `list_simdasi_subjects` | List SIMDASI subjects/chapters for an area |
+| `list_simdasi_master_tables` | List all SIMDASI master tables |
+| `list_simdasi_tables` | List SIMDASI tables for an area |
+| `list_simdasi_tables_by_subject` | List SIMDASI tables filtered by area + subject |
+| `get_simdasi_table` | Get detailed data from a SIMDASI table |
+
+### SDGs Tools (2)
+
+| Tool | Description |
+|------|-------------|
+| `list_sdgs` | List SDGs indicators (optionally by goal 1-17) |
+| `get_sdgs_data` | Fetch actual SDGs indicator values by var_id |
+
+### SDDS Tools (2)
+
+| Tool | Description |
+|------|-------------|
+| `list_sdds` | List SDDS indicators following IMF standards |
+| `get_sdds_data` | Fetch SDDS indicator data by var_id and model type |
+
+### Statistical Classification Tools (2)
+
+| Tool | Description |
+|------|-------------|
+| `list_classifications` | List KBLI (2009/2015/2017/2020) or KBKI (2015) entries |
+| `get_classification` | Get detailed information about a specific classification entry |
 
 ## How AI Uses This Server
 
@@ -285,6 +324,10 @@ AI uses: find_data(query="religion", region="Kab Jombang")
 "Latest quarterly economic growth"
 "Religious affiliation statistics in Klaten Regency"
 "Population distribution per district in Jakarta"
+"Get population data for Jakarta from the SIMDASI system"
+"List SDG indicators for climate action in Indonesia"
+"Show me SDDS macroeconomic data for Indonesia"
+"What are the KBLI 2020 business classification categories?"
 ```
 
 ## Resources (3)
@@ -331,7 +374,7 @@ npm install
 
 ```bash
 npm run build          # Compile TypeScript
-npm run test:unit      # Run unit tests (105 tests)
+npm run test:unit      # Run unit tests (164 tests)
 npm run lint           # ESLint check
 npm run typecheck      # TypeScript type check
 ```
@@ -401,13 +444,27 @@ src/
 │   ├── learning.ts          # Persistent learning store + stopwords-iso
 │   ├── domain-resolver.ts   # Fuzzy domain matching
 │   └── data-formatter.ts    # Format BPS data to markdown
-├── tools/          # MCP tool definitions (39 tools)
-│   ├── smart.tools.ts      # find_data, find_variable (AI shortcuts + intent detection)
-│   ├── analysis.tools.ts   # compare_data, get_trend, get_ranking
-│   ├── dynamic-data.tools.ts  # Core data tools
-│   ├── search.tools.ts     # Search with AllStats fallback
-│   ├── allstats.tools.ts   # AllStats search & deep search
-│   └── ...                  # Domain, publication, trade, etc.
+├── tools/          # MCP tool definitions (59 tools)
+│   ├── smart.tools.ts              # find_data, find_variable (AI shortcuts)
+│   ├── analysis.tools.ts           # compare_data, get_trend, get_ranking
+│   ├── dynamic-data.tools.ts       # Core data tools
+│   ├── search.tools.ts             # Search with AllStats fallback
+│   ├── allstats.tools.ts           # AllStats search & deep search
+│   ├── domain.tools.ts             # Domain resolution tools
+│   ├── publication.tools.ts        # Publications & press releases
+│   ├── trade.tools.ts              # Foreign trade data
+│   ├── census.tools.ts             # Census data tools
+│   ├── simdasi.tools.ts            # SIMDASI tools
+│   ├── sdgs.tools.ts               # SDGs tools
+│   ├── sdds.tools.ts               # SDDS tools
+│   ├── classification.tools.ts     # KBLI/KBKI classification tools
+│   ├── csa.tools.ts                # CSA subject tools
+│   ├── static-table.tools.ts       # Static table tools
+│   ├── reference.tools.ts          # Strategic indicators, infographics
+│   ├── infographic.tools.ts        # Infographic tools
+│   ├── news.tools.ts               # News tools
+│   ├── glossary.tools.ts           # Glossary tools
+│   └── utility.tools.ts            # cache_clear, server info
 ├── transport/      # stdio transport
 ├── utils/          # Logger and error handling
 ├── index.ts        # CLI entry point (stdio)

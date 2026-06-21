@@ -10,15 +10,15 @@
 
 ## 1. Executive Summary
 
-MCP (Model Context Protocol) server yang menjembatani data BPS (Badan Pusat Statistik) Indonesia ke AI clients seperti Claude Desktop, Claude Code, Cursor, dan MCP-compatible clients lainnya. Server ini memungkinkan user untuk melakukan natural language query terhadap data statistik resmi Indonesia — mulai dari data kependudukan, ekonomi, perdagangan, hingga data sensus.
+An MCP (Model Context Protocol) server that bridges BPS (Statistics Indonesia) data to AI clients such as Claude Desktop, Claude Code, Cursor, and other MCP-compatible clients. This server allows users to perform natural language queries on official Indonesian statistical data — ranging from population, economic, trade, to census data.
 
-**Prinsip utama:**
-- Open source, gratis, sesuai ToU BPS API (non-komersial)
-- Bring-your-own-key (BYOK) — setiap user menggunakan API token BPS mereka sendiri
-- Auth-layer agnostic — siap migrasi dari token sederhana (v1) ke WSO2 OAuth (v2)
-- Dual transport — stdio (lokal via npx) + Streamable HTTP (remote via Cloudflare Workers)
-- Bilingual — mendukung output bahasa Indonesia dan Inggris
-- Human-readable output — data BPS yang raw di-transform menjadi format yang mudah dipahami LLM
+**Key principles:**
+- Open source, free, compliant with BPS API ToU (non-commercial)
+- Bring-your-own-key (BYOK) — each user uses their own BPS API token
+- Auth-layer agnostic — ready to migrate from simple token (v1) to WSO2 OAuth (v2)
+- Dual transport — stdio (local via npx) + Streamable HTTP (remote via Cloudflare Workers)
+- Bilingual — supports Indonesian and English output
+- Human-readable output — raw BPS data transformed into LLM-friendly format
 
 **Compatible AI Clients:**
 - **Local (stdio):** Claude Desktop, Claude Code, Cursor, VS Code + Copilot, Windsurf, Cline/Roo Code, Zed, Continue.dev
@@ -90,7 +90,7 @@ MCP (Model Context Protocol) server yang menjembatani data BPS (Badan Pusat Stat
 
 ### 2.2 Transport Layer — Dual Mode
 
-MCP protocol mendukung dua transport standar. Server ini mengimplementasikan keduanya dengan shared core logic.
+The MCP protocol supports two standard transports. This server implements both with shared core logic.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -113,21 +113,21 @@ MCP protocol mendukung dua transport standar. Server ini mengimplementasikan ked
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Kapan pakai yang mana?**
+**When to use which?**
 
-| Scenario | Transport | Alasan |
+| Scenario | Transport | Reason |
 |---|---|---|
-| Developer pakai Claude Desktop/Code | stdio | Paling simple, install via npx |
-| Developer pakai Cursor/VS Code | stdio | Native support, low latency |
-| User pakai ChatGPT | HTTP (Workers) | ChatGPT butuh remote HTTPS endpoint |
-| User pakai Gemini | HTTP (Workers) | Sama — butuh remote endpoint |
-| Mobile app / web app | HTTP (Workers) | Nggak bisa spawn subprocess |
-| Automation (n8n, etc.) | HTTP (Workers) | Perlu accessible via network |
-| Air-gapped / offline | stdio | Nggak butuh internet untuk transport |
+| Developer using Claude Desktop/Code | stdio | Simplest, install via npx |
+| Developer using Cursor/VS Code | stdio | Native support, low latency |
+| User using ChatGPT | HTTP (Workers) | ChatGPT needs remote HTTPS endpoint |
+| User using Gemini | HTTP (Workers) | Same — needs remote endpoint |
+| Mobile app / web app | HTTP (Workers) | Cannot spawn subprocess |
+| Automation (n8n, etc.) | HTTP (Workers) | Needs network accessibility |
+| Air-gapped / offline | stdio | No internet needed for transport |
 
 ### 2.2 Auth Provider — Strategy Pattern (v1 ↔ v2 Migration)
 
-Ini desain kunci untuk menghadapi migrasi dari token sederhana ke WSO2.
+This is the key design to handle migration from simple token to WSO2.
 
 ```
 ┌────────────────────────────────────────────┐
@@ -157,10 +157,10 @@ Ini desain kunci untuk menghadapi migrasi dari token sederhana ke WSO2.
    └─────────────────┘  └──────────────────┘
 ```
 
-**Konfigurasi via environment:**
+**Configuration via environment:**
 
 ```bash
-# V1 (current) — cukup API key
+# V1 (current) — just API key
 BPS_AUTH_TYPE=api-key
 BPS_API_KEY=your_api_key_here
 
@@ -172,15 +172,15 @@ BPS_OAUTH_TOKEN_ENDPOINT=https://api-gateway.bps.go.id/oauth2/token
 BPS_OAUTH_SCOPES=openid,statistics:read
 
 # Shared
-BPS_API_BASE_URL=https://webapi.bps.go.id/v1  # atau v2 nantinya
+BPS_API_BASE_URL=https://webapi.bps.go.id/v1  # or v2 later
 BPS_DEFAULT_LANG=ind
 ```
 
-**Auto-detection:** Server bisa auto-detect auth type dari env vars yang tersedia, sehingga user nggak perlu set `BPS_AUTH_TYPE` secara eksplisit jika hanya `BPS_API_KEY` yang di-set.
+**Auto-detection:** The server can auto-detect the auth type from available env vars, so users don't need to explicitly set `BPS_AUTH_TYPE` if only `BPS_API_KEY` is set.
 
 ### 2.3 Caching Strategy
 
-BPS data itu jarang berubah (rilis bulanan/tahunan), jadi caching sangat efektif:
+BPS data rarely changes (monthly/yearly releases), so caching is very effective:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -216,113 +216,113 @@ BPS data itu jarang berubah (rilis bulanan/tahunan), jadi caching sangat efektif
 
 ### 3.1 Tool Catalog
 
-Berdasarkan analisis lengkap BPS API documentation, berikut semua tools yang akan di-expose:
+Based on a complete analysis of the BPS API documentation, here are all the tools that will be exposed:
 
-#### Kategori: Wilayah (Domain)
-
-| Tool | Description | Key Params |
-|------|-------------|------------|
-| `list_domains` | Daftar domain/wilayah BPS (provinsi, kab/kota) | `type`: all/prov/kab/kabbyprov, `prov?` |
-
-#### Kategori: Subjek & Variabel
+#### Category: Region (Domain)
 
 | Tool | Description | Key Params |
 |------|-------------|------------|
-| `list_subjects` | Daftar subjek data statistik | `domain`, `subcat?` |
-| `list_subject_categories` | Daftar kategori subjek | `domain` |
-| `list_variables` | Daftar variabel di tabel dinamis | `domain`, `subject?`, `year?` |
-| `list_vertical_variables` | Daftar variabel vertikal | `domain`, `var?` |
-| `list_derived_variables` | Daftar turunan variabel | `domain`, `var?` |
-| `list_periods` | Daftar periode data | `domain`, `var?` |
-| `list_derived_periods` | Daftar turunan periode | `domain`, `var?` |
-| `list_units` | Daftar satuan data | `domain` |
+| `list_domains` | List BPS domains/regions (province, regency/city) | `type`: all/prov/kab/kabbyprov, `prov?` |
 
-#### Kategori: Data Dinamis
+#### Category: Subject & Variable
 
 | Tool | Description | Key Params |
 |------|-------------|------------|
-| `get_dynamic_data` | **Core tool** — Ambil data dari tabel dinamis | `domain`, `var`, `th` (periode), `turvar?`, `vervar?`, `turth?` |
+| `list_subjects` | List statistical data subjects | `domain`, `subcat?` |
+| `list_subject_categories` | List subject categories | `domain` |
+| `list_variables` | List variables in dynamic tables | `domain`, `subject?`, `year?` |
+| `list_vertical_variables` | List vertical variables | `domain`, `var?` |
+| `list_derived_variables` | List derived variables | `domain`, `var?` |
+| `list_periods` | List data periods | `domain`, `var?` |
+| `list_derived_periods` | List derived periods | `domain`, `var?` |
+| `list_units` | List data units | `domain` |
 
-#### Kategori: Tabel Statis
-
-| Tool | Description | Key Params |
-|------|-------------|------------|
-| `list_static_tables` | List semua tabel statis | `domain`, `keyword?`, `year?`, `month?` |
-| `get_static_table` | Detail satu tabel statis (HTML table) | `domain`, `id` |
-
-#### Kategori: Sensus
-
-| Tool | Description | Key Params |
-|------|-------------|------------|
-| `list_census_events` | List kegiatan sensus | — |
-| `list_census_topics` | List topik data per sensus | `kegiatan` |
-| `list_census_areas` | List wilayah sensus | `kegiatan` |
-| `list_census_datasets` | List dataset per sensus & topik | `kegiatan`, `topik` |
-| `get_census_data` | Ambil data sensus | `kegiatan`, `wilayah_sensus`, `dataset` |
-
-#### Kategori: SIMDASI (Statistik Indonesia / DDA)
+#### Category: Dynamic Data
 
 | Tool | Description | Key Params |
 |------|-------------|------------|
-| `list_simdasi_subjects` | Subjek SIMDASI per wilayah | `wilayah` (7-digit MFD code) |
-| `list_simdasi_tables` | Tabel SIMDASI per wilayah | `wilayah` |
-| `list_simdasi_tables_by_subject` | Tabel per wilayah & subjek | `wilayah`, `id_subjek` |
-| `get_simdasi_table` | Detail tabel SIMDASI | `wilayah`, `tahun`, `id_tabel` |
-| `list_simdasi_provinces` | MFD codes provinsi | — |
-| `list_simdasi_regencies` | MFD codes kab/kota | `parent` |
-| `list_simdasi_districts` | MFD codes kecamatan | `parent` |
+| `get_dynamic_data` | **Core tool** — Fetch data from dynamic tables | `domain`, `var`, `th` (period), `turvar?`, `vervar?`, `turth?` |
 
-#### Kategori: CSA (Classification of Statistical Activities)
+#### Category: Static Tables
 
 | Tool | Description | Key Params |
 |------|-------------|------------|
-| `list_csa_categories` | Kategori CSA | `domain` |
-| `list_csa_subjects` | Subjek CSA | `domain`, `subcat?` |
-| `list_csa_tables` | Tabel per subjek CSA | `domain`, `subject?` |
-| `get_csa_table` | Detail tabel CSA | `domain`, `id`, `year?` |
+| `list_static_tables` | List all static tables | `domain`, `keyword?`, `year?`, `month?` |
+| `get_static_table` | Detail of one static table (HTML table) | `domain`, `id` |
 
-#### Kategori: Publikasi & Berita
+#### Category: Census
 
 | Tool | Description | Key Params |
 |------|-------------|------------|
-| `list_publications` | List publikasi BPS | `domain`, `keyword?`, `year?`, `month?` |
-| `get_publication` | Detail publikasi | `domain`, `id` |
-| `list_press_releases` | List Berita Resmi Statistik | `domain`, `keyword?`, `year?`, `month?` |
-| `get_press_release` | Detail BRS | `domain`, `id` |
+| `list_census_events` | List census events | — |
+| `list_census_topics` | List data topics per census | `kegiatan` |
+| `list_census_areas` | List census regions | `kegiatan` |
+| `list_census_datasets` | List datasets per census & topic | `kegiatan`, `topik` |
+| `get_census_data` | Fetch census data | `kegiatan`, `wilayah_sensus`, `dataset` |
 
-#### Kategori: Indikator & Referensi
-
-| Tool | Description | Key Params |
-|------|-------------|------------|
-| `list_strategic_indicators` | Indikator strategis (pusat/prov) | `domain`, `var?` |
-| `list_infographics` | Infografis BPS | `domain`, `keyword?` |
-| `list_glossary` | Glosarium statistik | `prefix?`, `perpage?` |
-| `get_glossary` | Detail glosarium | `id` |
-
-#### Kategori: Perdagangan Luar Negeri
+#### Category: SIMDASI (Statistics Indonesia / DDA)
 
 | Tool | Description | Key Params |
 |------|-------------|------------|
-| `get_trade_data` | Data ekspor/impor | `source` (1=ekspor/2=impor), `hs_code`, `hs_type`, `year`, `period` |
+| `list_simdasi_subjects` | SIMDASI subjects per region | `wilayah` (7-digit MFD code) |
+| `list_simdasi_tables` | SIMDASI tables per region | `wilayah` |
+| `list_simdasi_tables_by_subject` | Tables per region & subject | `wilayah`, `id_subjek` |
+| `get_simdasi_table` | SIMDASI table detail | `wilayah`, `tahun`, `id_tabel` |
+| `list_simdasi_provinces` | Province MFD codes | — |
+| `list_simdasi_regencies` | Regency/city MFD codes | `parent` |
+| `list_simdasi_districts` | District MFD codes | `parent` |
 
-#### Kategori: SDGs & SDDS
+#### Category: CSA (Classification of Statistical Activities)
 
 | Tool | Description | Key Params |
 |------|-------------|------------|
-| `get_sdgs_data` | Data Sustainable Development Goals | (TBD — perlu explore endpoint) |
-| `get_sdds_data` | SDDS data | (TBD — perlu explore endpoint) |
+| `list_csa_categories` | CSA categories | `domain` |
+| `list_csa_subjects` | CSA subjects | `domain`, `subcat?` |
+| `list_csa_tables` | Tables per CSA subject | `domain`, `subject?` |
+| `get_csa_table` | CSA table detail | `domain`, `id`, `year?` |
 
-#### Kategori: Pencarian & Utilitas
+#### Category: Publications & News
 
 | Tool | Description | Key Params |
 |------|-------------|------------|
-| `search` | Pencarian data lintas tipe | `domain`, `keyword`, `type?` |
-| `resolve_domain` | Konversi nama wilayah → kode domain | `query` (e.g., "Surabaya", "Jawa Timur") |
-| `cache_clear` | Bersihkan cache | — |
+| `list_publications` | List BPS publications | `domain`, `keyword?`, `year?`, `month?` |
+| `get_publication` | Publication detail | `domain`, `id` |
+| `list_press_releases` | List Official Statistics News (BRS) | `domain`, `keyword?`, `year?`, `month?` |
+| `get_press_release` | BRS detail | `domain`, `id` |
+
+#### Category: Indicators & References
+
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `list_strategic_indicators` | Strategic indicators (national/province) | `domain`, `var?` |
+| `list_infographics` | BPS infographics | `domain`, `keyword?` |
+| `list_glossary` | Statistical glossary | `prefix?`, `perpage?` |
+| `get_glossary` | Glossary detail | `id` |
+
+#### Category: Foreign Trade
+
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `get_trade_data` | Export/import data | `source` (1=export/2=import), `hs_code`, `hs_type`, `year`, `period` |
+
+#### Category: SDGs & SDDS
+
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `get_sdgs_data` | Sustainable Development Goals data | (TBD — need to explore endpoint) |
+| `get_sdds_data` | SDDS data | (TBD — need to explore endpoint) |
+
+#### Category: Search & Utilities
+
+| Tool | Description | Key Params |
+|------|-------------|------------|
+| `search` | Cross-type data search | `domain`, `keyword`, `type?` |
+| `resolve_domain` | Convert region name → domain code | `query` (e.g., "Surabaya", "Jawa Timur") |
+| `cache_clear` | Clear cache | — |
 
 ### 3.2 Domain Resolver — Smart Lookup
 
-Ini fitur kritis yang membuat server user-friendly. User bilang "Surabaya", server perlu resolve ke domain code "3578".
+This is a critical feature that makes the server user-friendly. Users say "Surabaya", the server needs to resolve it to domain code "3578".
 
 ```
 Strategi:
@@ -341,7 +341,7 @@ Tapi juga available as tool untuk debugging/exploration.
 
 ### 3.3 Data Formatter
 
-BPS API mengembalikan data dalam format yang sulit dibaca LLM, terutama `datacontent` di dynamic data:
+The BPS API returns data in a format that is difficult for LLMs to read, especially `datacontent` in dynamic data:
 
 ```json
 // Raw BPS response (datacontent key = gabungan vervar+var+turvar+th)
@@ -352,38 +352,38 @@ BPS API mengembalikan data dalam format yang sulit dibaca LLM, terutama `datacon
 di INDONESIA pada tahun 2000: 83.68%"
 ```
 
-Formatter akan:
-1. Resolve datacontent keys ke label yang readable
-2. Membentuk tabel teks atau structured response
-3. Menyertakan metadata (sumber, catatan, unit)
-4. Menambahkan atribusi BPS sesuai ToU
+The formatter will:
+1. Resolve datacontent keys to readable labels
+2. Form text tables or structured responses
+3. Include metadata (source, notes, unit)
+4. Add BPS attribution per ToU
 
 ---
 
 ## 4. MCP Resources
 
-Resources menyediakan data statis/referensi yang bisa dibaca client tanpa tool call:
+Resources provide static/reference data that clients can read without a tool call:
 
 | Resource URI | Description |
 |---|---|
-| `bps://domains/provinces` | Daftar provinsi (cached) |
-| `bps://domains/regencies/{prov_id}` | Kab/kota per provinsi |
-| `bps://subjects/{domain}` | Daftar subjek per domain |
-| `bps://glossary/{term}` | Definisi istilah statistik |
+| `bps://domains/provinces` | List of provinces (cached) |
+| `bps://domains/regencies/{prov_id}` | Regencies/cities per province |
+| `bps://subjects/{domain}` | List of subjects per domain |
+| `bps://glossary/{term}` | Statistical term definitions |
 
 ---
 
 ## 5. MCP Prompts
 
-Pre-built prompts untuk common use cases:
+Pre-built prompts for common use cases:
 
 | Prompt Name | Description |
 |---|---|
-| `compare_regions` | Template untuk membandingkan data antar wilayah |
-| `trend_analysis` | Template untuk analisis tren multi-tahun |
-| `poverty_profile` | Template profil kemiskinan suatu daerah |
-| `economic_overview` | Template ringkasan ekonomi daerah |
-| `population_stats` | Template statistik kependudukan |
+| `compare_regions` | Template for comparing data between regions |
+| `trend_analysis` | Template for multi-year trend analysis |
+| `poverty_profile` | Template for poverty profile of a region |
+| `economic_overview` | Template for regional economic summary |
+| `population_stats` | Template for population statistics |
 
 ---
 
@@ -502,7 +502,7 @@ dml-bps-mcp/
 | Linting | `eslint` + `prettier` | Code quality |
 | Package manager | `npm` | Widest compatibility |
 
-**Shared-core philosophy:** Tools, auth providers, formatters, dan resolvers ditulis sekali — transport layer (stdio vs Workers) hanya berbeda di entry point dan cache implementation. `fetch` API tersedia di kedua runtime tanpa polyfill.
+**Shared-core philosophy:** Tools, auth providers, formatters, and resolvers are written once — the transport layer (stdio vs Workers) only differs in entry points and cache implementation. The `fetch` API is available on both runtimes without polyfill.
 
 ---
 
@@ -512,12 +512,12 @@ dml-bps-mcp/
 
 ```bash
 # === Required ===
-BPS_API_KEY=your_api_key          # Dari webapi.bps.go.id
+BPS_API_KEY=your_api_key          # From webapi.bps.go.id
 
 # === Optional (with defaults) ===
-BPS_API_BASE_URL=https://webapi.bps.go.id/v1  # Base URL API
+BPS_API_BASE_URL=https://webapi.bps.go.id/v1  # Base API URL
 BPS_DEFAULT_LANG=ind              # Default language: ind | eng
-BPS_DEFAULT_DOMAIN=0000           # Default domain (0000 = Nasional)
+BPS_DEFAULT_DOMAIN=0000           # Default domain (0000 = National)
 BPS_CACHE_ENABLED=true            # Enable/disable caching
 BPS_CACHE_MAX_ENTRIES=500         # Max cache entries (stdio in-memory only)
 BPS_LOG_LEVEL=info                # debug | info | warn | error
@@ -563,7 +563,7 @@ tag = "v1"
 new_classes = ["McpSession"]
 ```
 
-**Catatan:** Pada Cloudflare Workers, BPS_API_KEY TIDAK disimpan di `[vars]` (plain text). Gunakan `wrangler secret put BPS_API_KEY` untuk menyimpan sebagai encrypted secret. Namun pada authless public deployment, user mengirim API key mereka sendiri via request header `X-BPS-API-Key`.
+**Note:** On Cloudflare Workers, BPS_API_KEY is NOT stored in `[vars]` (plain text). Use `wrangler secret put BPS_API_KEY` to store it as an encrypted secret. However, in authless public deployments, users send their own API key via the `X-BPS-API-Key` request header.
 
 ### 8.2 Zod Config Schema
 
@@ -606,18 +606,18 @@ const ConfigSchema = z.object({
 
 ## 9. ToU Compliance Checklist
 
-Berdasarkan Term of Use BPS API (Desember 2022):
+Based on the BPS API Terms of Use (December 2022):
 
-| Pasal | Requirement | Implementation |
+| Article | Requirement | Implementation |
 |---|---|---|
-| 3B | Token tidak boleh dibagi | BYOK — user provide own key via env (stdio) atau header (HTTP) |
-| 4B | Atribusi wajib | Setiap response menyertakan: "Layanan ini menggunakan API Badan Pusat Statistik (BPS)" |
+| 3B | Token cannot be shared | BYOK — user provides own key via env (stdio) or header (HTTP) |
+| 4B | Attribution required | Every response includes: "Layanan ini menggunakan API Badan Pusat Statistik (BPS)" |
 | 4C | Rate limit respect | Caching (in-memory / KV) + exponential backoff |
-| 4E | Non-komersial | Open source MIT, gratis |
-| 7 | Gratis & terbuka non-komersial | Sesuai — no monetization |
-| 14A | Keamanan token | stdio: token di env var. Workers: token via encrypted header, tidak di-log, tidak di-persist |
+| 4E | Non-commercial | Open source MIT, free |
+| 7 | Free & open for non-commercial | Compliant — no monetization |
+| 14A | Token security | stdio: token in env var. Workers: token via encrypted header, not logged, not persisted |
 
-### Attribution Text (wajib ada di setiap response tool)
+### Attribution Text (required in every tool response)
 
 ```typescript
 const ATTRIBUTION = "Sumber: Badan Pusat Statistik (BPS) — https://www.bps.go.id\n" +
@@ -626,24 +626,24 @@ const ATTRIBUTION = "Sumber: Badan Pusat Statistik (BPS) — https://www.bps.go.
 
 ### Remote Deployment & ToU Considerations
 
-Pada mode remote (Cloudflare Workers), ada pertimbangan tambahan terkait Pasal 3B (token tidak boleh dibagi):
+In remote mode (Cloudflare Workers), there are additional considerations regarding Article 3B (token cannot be shared):
 
-**Opsi A: Authless — User kirim key per-request (MVP)**
-- User set header `X-BPS-API-Key` di setiap koneksi
-- Server TIDAK menyimpan key secara permanen
-- Key hanya ada di memory selama request processing
-- Compliant karena server tidak "meminjamkan" key — user pakai key sendiri
+**Option A: Authless — User sends key per-request (MVP)**
+- User sets `X-BPS-API-Key` header on each connection
+- Server does NOT store the key permanently
+- Key only exists in memory during request processing
+- Compliant because the server does not "lend" the key — users use their own key
 
-**Opsi B: OAuth flow — User login & simpan key (Phase 4+)**
-- User authenticate via OAuth (GitHub/Google)
-- User input BPS API key sekali, disimpan encrypted di Durable Object per-user
-- Subsequent requests pakai stored key
-- Lebih convenient, tapi perlu clear consent dari user
+**Option B: OAuth flow — User logs in & stores key (Phase 4+)**
+- User authenticates via OAuth (GitHub/Google)
+- User enters BPS API key once, stored encrypted in per-user Durable Object
+- Subsequent requests use stored key
+- More convenient, but needs clear user consent
 
-**Opsi C: Self-hosted — User deploy Workers sendiri (recommended untuk production)**
-- User fork repo → `wrangler secret put BPS_API_KEY` → deploy ke akun Workers mereka sendiri
-- Paling secure — key tidak pernah transit ke server pihak ketiga
-- Template `Deploy to Cloudflare` button di README
+**Option C: Self-hosted — User deploys their own Workers (recommended for production)**
+- User forks repo → `wrangler secret put BPS_API_KEY` → deploys to their own Workers account
+- Most secure — key never transits to third-party servers
+- Template `Deploy to Cloudflare` button in README
 
 ---
 
@@ -651,13 +651,13 @@ Pada mode remote (Cloudflare Workers), ada pertimbangan tambahan terkait Pasal 3
 
 ### Phase 1: Foundation (Week 1-2)
 
-**Goal:** Server berjalan dengan 3-5 core tools.
+**Goal:** Server running with 3-5 core tools.
 
 - [ ] Project scaffolding (TypeScript, MCP SDK, Zod)
-- [ ] Config management dengan Zod validation
+- [ ] Config management with Zod validation
 - [ ] Auth provider interface + API Key provider (v1)
-- [ ] BPS HTTP client dengan error handling
-- [ ] In-memory LRU cache dengan TTL
+- [ ] BPS HTTP client with error handling
+- [ ] In-memory LRU cache with TTL
 - [ ] stderr-safe logger
 - [ ] **Tools:** `list_domains`, `resolve_domain`
 - [ ] **Tools:** `list_subjects`, `list_variables`
@@ -665,11 +665,11 @@ Pada mode remote (Cloudflare Workers), ada pertimbangan tambahan terkait Pasal 3
 - [ ] Data formatter — datacontent key resolution
 - [ ] Attribution text injection
 - [ ] Basic README + setup guide
-- [ ] Test: connect ke Claude Desktop via stdio
+- [ ] Test: connect to Claude Desktop via stdio
 
 ### Phase 2: Complete Data Coverage (Week 3-4)
 
-**Goal:** Semua BPS API endpoints ter-cover.
+**Goal:** All BPS API endpoints covered.
 
 - [ ] **Tools:** Static tables (list + detail)
 - [ ] **Tools:** Census data (events, topics, areas, datasets, data)
@@ -692,77 +692,77 @@ Pada mode remote (Cloudflare Workers), ada pertimbangan tambahan terkait Pasal 3
 - [ ] MCP Prompts (compare_regions, trend_analysis, etc.)
 - [ ] Comprehensive unit tests (vitest)
 - [ ] Integration tests against real BPS API
-- [ ] Error messages in bahasa Indonesia
+- [ ] Error messages in Indonesian
 - [ ] `.env.example` + setup wizard script
 - [ ] Full documentation: SETUP.md, TOOLS.md, CLIENTS.md, CONTRIBUTING.md
 - [ ] Per-client config examples (Claude Desktop, Claude Code, Cursor, VS Code, Windsurf)
 - [ ] GitHub Actions CI/CD
-- [ ] Publish ke npm: `dml-bps-mcp`
-- [ ] Submit ke MCP server registry (modelcontextprotocol/servers)
+- [ ] Publish to npm: `dml-bps-mcp`
+- [ ] Submit to MCP server registry (modelcontextprotocol/servers)
 
 ### Phase 4: Cloudflare Workers Remote Deployment (Week 7-8)
 
-**Goal:** BPS MCP accessible via HTTP untuk ChatGPT, Gemini, dan semua remote clients.
+**Goal:** BPS MCP accessible via HTTP for ChatGPT, Gemini, and all remote clients.
 
 - [ ] Cloudflare Workers entry point (`src/worker.ts`)
-- [ ] Streamable HTTP transport setup dengan `agents` SDK
+- [ ] Streamable HTTP transport setup with `agents` SDK
 - [ ] Cache interface abstraction (in-memory ↔ KV switch)
-- [ ] KV namespace setup untuk caching BPS responses
+- [ ] KV namespace setup for caching BPS responses
 - [ ] API key via `X-BPS-API-Key` header (authless mode)
 - [ ] CORS + security headers
-- [ ] Rate limiting per-IP di Workers level
+- [ ] Rate limiting per-IP at Workers level
 - [ ] `wrangler.toml` configuration
-- [ ] "Deploy to Cloudflare" button di README
+- [ ] "Deploy to Cloudflare" button in README
 - [ ] Self-hosted deployment guide (DEPLOY-WORKERS.md)
-- [ ] Test: connect dari ChatGPT Connectors
-- [ ] Test: connect dari Gemini
-- [ ] Test: connect dari MCP Inspector
-- [ ] Submit ke Smithery.ai (MCP marketplace)
-- [ ] Submit ke PulseMCP.com client directory
+- [ ] Test: connect from ChatGPT Connectors
+- [ ] Test: connect from Gemini
+- [ ] Test: connect from MCP Inspector
+- [ ] Submit to Smithery.ai (MCP marketplace)
+- [ ] Submit to PulseMCP.com client directory
 
 ### Phase 5: WSO2 Readiness & OAuth (Week 9-10)
 
-**Goal:** Siap untuk migrasi auth BPS API v2 + optional OAuth untuk remote users.
+**Goal:** Ready for BPS API v2 auth migration + optional OAuth for remote users.
 
 - [ ] OAuth2 provider implementation (WSO2-compatible)
 - [ ] Token refresh logic + retry on 401
 - [ ] MIGRATION-V2.md documentation
-- [ ] Optional: OAuth flow untuk remote users (Cloudflare Access atau GitHub OAuth)
-- [ ] Optional: Durable Objects untuk per-user API key storage
+- [ ] Optional: OAuth flow for remote users (Cloudflare Access or GitHub OAuth)
+- [ ] Optional: Durable Objects for per-user API key storage
 - [ ] Docker image (alternative deployment for non-CF users)
 
 ---
 
 ## 11. WSO2 Migration Strategy
 
-### 11.1 Apa yang Berubah?
+### 11.1 What Changes?
 
 | Aspect | V1 (Current) | V2 (WSO2) |
 |---|---|---|
-| Auth mechanism | Static API key sebagai query param | OAuth2 Bearer token di header |
+| Auth mechanism | Static API key as query param | OAuth2 Bearer token in header |
 | Token lifecycle | Permanent, no expiry | Access token + refresh token, expiry |
 | Registration | webapi.bps.go.id → get key | WSO2 Developer Portal → OAuth app |
 | Rate limiting | Implicit (server-side) | Explicit via API Gateway policies |
-| Base URL | webapi.bps.go.id/v1 | Kemungkinan berubah (TBD) |
-| API structure | Mungkin sama, mungkin v2 endpoints | TBD |
+| Base URL | webapi.bps.go.id/v1 | May change (TBD) |
+| API structure | May be same, may be v2 endpoints | TBD |
 
-### 11.2 Desain yang Sudah Future-Proof
+### 11.2 Design Already Future-Proof
 
 1. **Auth abstracted** — Strategy pattern, switch via config
-2. **Base URL configurable** — env var, bukan hardcoded
-3. **HTTP client abstracted** — auth headers injected by provider, bukan di client
-4. **Token refresh built-in** — OAuth2 provider punya refresh logic + buffer
-5. **Retry on 401** — Client otomatis refresh token dan retry pada 401
+2. **Base URL configurable** — env var, not hardcoded
+3. **HTTP client abstracted** — auth headers injected by provider, not in the client
+4. **Token refresh built-in** — OAuth2 provider has refresh logic + buffer
+5. **Retry on 401** — Client automatically refreshes token and retries on 401
 
-### 11.3 Migration Checklist (Saat V2 Rilis)
+### 11.3 Migration Checklist (When V2 Releases)
 
 ```
-1. [ ] Analisis API docs WSO2 BPS
-2. [ ] Implement OAuth2Provider berdasarkan actual endpoint
+1. [ ] Analyze WSO2 BPS API docs
+2. [ ] Implement OAuth2Provider based on actual endpoint
 3. [ ] Test token acquisition + refresh flow
-4. [ ] Mapping endpoint lama → baru (jika berubah)
+4. [ ] Map old → new endpoints (if they change)
 5. [ ] Update README + config docs
-6. [ ] Bump version (semver major jika breaking)
+6. [ ] Bump version (semver major if breaking)
 7. [ ] Publish update
 ```
 
@@ -774,7 +774,7 @@ Pada mode remote (Cloudflare Workers), ada pertimbangan tambahan terkait Pasal 3
 
 #### Claude Desktop
 
-File: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) atau `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
+File: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
 
 ```json
 {
@@ -792,7 +792,7 @@ File: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) 
 
 #### Claude Code
 
-File: `.mcp.json` di project root
+File: `.mcp.json` in project root
 
 ```json
 {
@@ -808,7 +808,7 @@ File: `.mcp.json` di project root
 }
 ```
 
-Atau via CLI: `claude mcp add bps -- npx -y dml-bps-mcp`
+Or via CLI: `claude mcp add bps -- npx -y dml-bps-mcp`
 
 #### Cursor
 
@@ -816,7 +816,7 @@ Settings → Features → MCP → Add MCP Server:
 - Type: `command`
 - Command: `npx -y dml-bps-mcp`
 
-Atau file `~/.cursor/mcp.json`:
+Or file `~/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
@@ -833,7 +833,7 @@ Atau file `~/.cursor/mcp.json`:
 
 #### VS Code + GitHub Copilot
 
-File: `.vscode/mcp.json` di workspace:
+File: `.vscode/mcp.json` in workspace:
 ```json
 {
   "servers": {
@@ -850,14 +850,14 @@ File: `.vscode/mcp.json` di workspace:
 
 #### Windsurf / Cline / Roo Code
 
-Sama dengan format Cursor — tambahkan di MCP config masing-masing.
+Same as Cursor format — add to their respective MCP config.
 
 ### 12.2 Remote Clients (Streamable HTTP transport)
 
 #### Self-Hosted Workers (recommended)
 
 ```bash
-# Clone & deploy ke akun Cloudflare sendiri
+# Clone & deploy to your own Cloudflare account
 git clone https://github.com/Digimetalab/dml-bps-mcp
 cd dml-bps-mcp
 wrangler secret put BPS_API_KEY  # input key interactively
@@ -867,18 +867,18 @@ wrangler deploy
 
 #### ChatGPT
 
-1. Enable Developer mode di ChatGPT Settings
+1. Enable Developer mode in ChatGPT Settings
 2. Settings → Connectors → Create Connector
 3. URL: `https://dml-bps-mcp.{your-subdomain}.workers.dev/mcp`
-4. (Opsional) tambahkan header `X-BPS-API-Key` jika pakai public instance
+4. (Optional) add `X-BPS-API-Key` header if using public instance
 
 #### Gemini / Microsoft Copilot
 
-Arahkan ke URL MCP endpoint Workers yang sudah di-deploy.
+Point to the deployed Workers MCP endpoint URL.
 
-#### Dari MCP Client yang belum support remote natively
+#### From MCP Clients Without Native Remote Support
 
-Gunakan `mcp-remote` sebagai bridge:
+Use `mcp-remote` as a bridge:
 ```json
 {
   "mcpServers": {
@@ -986,7 +986,7 @@ jobs:
 | npm | `npmjs.com/package/dml-bps-mcp` | Primary: stdio local install | stdio |
 | GitHub | `github.com/Digimetalab/dml-bps-mcp` | Source code + issues | — |
 | Cloudflare Workers | `dml-bps-mcp.{user}.workers.dev/mcp` | Self-deploy remote instance | HTTP |
-| "Deploy to CF" button | Di README.md | One-click self-deploy ke CF akun user | HTTP |
+| "Deploy to CF" button | In README.md | One-click self-deploy to user's CF account | HTTP |
 | MCP Registry | `github.com/modelcontextprotocol/servers` | Official MCP listing | — |
 | Smithery | `smithery.ai` | MCP marketplace | — |
 | PulseMCP | `pulsemcp.com` | MCP client/server directory | — |
@@ -1000,7 +1000,7 @@ jobs:
 |---|---|---|---|
 | BPS API down / rate limited | Users can't fetch data | Medium | Caching (KV/in-memory) + graceful error messages |
 | BPS API v2 breaking changes | Major refactor needed | Medium | Abstracted client + versioned endpoints |
-| WSO2 auth flow berbeda dari expected | Auth provider perlu rewrite | Low | Strategy pattern allows isolated changes |
+| WSO2 auth flow different from expected | Auth provider needs rewrite | Low | Strategy pattern allows isolated changes |
 | API key abuse (user shares key) | BPS blocks the key | Low | BYOK model — document best practices |
 | BPS changes ToU | May restrict MCP usage | Low | Monitor ToU, maintain compliance |
 | Low adoption | Wasted effort | Medium | Target niche (researchers, data journalists) + good docs |
@@ -1029,15 +1029,15 @@ jobs:
 
 ## 17. Cloudflare Workers Deployment — Detail
 
-### 17.1 Kenapa Workers, Bukan Pages?
+### 17.1 Why Workers, Not Pages?
 
 | | Cloudflare Pages | Cloudflare Workers |
 |---|---|---|
-| Tujuan | Static sites + SSR frameworks | Serverless compute, API endpoints |
-| MCP support | Tidak bisa (no persistent connections) | First-class: Streamable HTTP + SSE |
-| Persistent state | Tidak | Durable Objects, KV, R2 |
-| Custom HTTP handling | Terbatas | Full control via fetch handler |
-| Pricing | Free untuk static | Free: 100K req/day, 10ms CPU/req |
+| Purpose | Static sites + SSR frameworks | Serverless compute, API endpoints |
+| MCP support | Not possible (no persistent connections) | First-class: Streamable HTTP + SSE |
+| Persistent state | No | Durable Objects, KV, R2 |
+| Custom HTTP handling | Limited | Full control via fetch handler |
+| Pricing | Free for static | Free: 100K req/day, 10ms CPU/req |
 
 ### 17.2 Workers Architecture
 
@@ -1101,9 +1101,9 @@ interface ICacheProvider {
 ### 17.4 Deployment Options
 
 **Option A: One-click deploy (recommended for ChatGPT/Gemini users)**
-- "Deploy to Cloudflare" button di README
-- User click → fork repo → auto-deploy ke akun CF mereka
-- User set BPS_API_KEY sebagai secret via Wrangler
+- "Deploy to Cloudflare" button in README
+- User clicks → forks repo → auto-deploys to their CF account
+- User sets BPS_API_KEY as a secret via Wrangler
 - Endpoint: `https://dml-dml-bps-mcp.{user}.workers.dev/mcp`
 
 **Option B: Manual deploy (developers)**
@@ -1116,17 +1116,17 @@ wrangler deploy
 ```
 
 **Option C: Shared public instance (demo/testing only)**
-- Kita host satu instance publik untuk demo/testing
-- User kirim key via `X-BPS-API-Key` header per request
-- Rate limited, untuk trial only
+- We host one public instance for demo/testing
+- User sends key via `X-BPS-API-Key` header per request
+- Rate limited, for trial only
 - URL: `https://bps-mcp-demo.digimetalab.workers.dev/mcp`
 
-### 17.5 Security Considerations untuk Remote
+### 17.5 Security Considerations for Remote
 
 | Concern | Mitigation |
 |---|---|
-| API key in transit | HTTPS only (enforced by CF), key di header bukan URL |
-| API key logging | Tidak di-log di Workers (explicitly excluded dari logs) |
+| API key in transit | HTTPS only (enforced by CF), key in header not URL |
+| API key logging | Not logged in Workers (explicitly excluded from logs) |
 | Abuse / DDoS | CF built-in DDoS protection + rate limiting |
 | Unauthorized access | Authless: per-request key. OAuth: login required. |
 | DNS rebinding | Origin header validation (MCP spec requirement) |
@@ -1136,23 +1136,23 @@ wrangler deploy
 
 ## 18. Open Questions
 
-1. **npm package name:** `dml-bps-mcp` — sudah diputuskan.
+1. **npm package name:** `dml-bps-mcp` — already decided.
 
-2. **SDGs & SDDS endpoints:** Dokumentasi BPS API tidak detail untuk ini. Perlu explore manual.
+2. **SDGs & SDDS endpoints:** BPS API documentation is not detailed on this. Needs manual exploration.
 
-3. **Statistical Classifications endpoint:** Ada di docs tapi belum jelas parameter lengkapnya.
+3. **Statistical Classifications endpoint:** Present in docs but the complete parameters are not yet clear.
 
-4. **Searching endpoint:** Perlu test response format, belum ada sample response di docs.
+4. **Searching endpoint:** Need to test response format, no sample response in docs yet.
 
-5. **SIMDASI detail table response format:** Docs tidak menunjukkan sample response lengkap.
+5. **SIMDASI detail table response format:** Docs don't show a complete sample response.
 
-6. **Rate limits:** BPS tidak mendokumentasikan rate limit spesifik. Perlu test empiris dan implement conservative defaults.
+6. **Rate limits:** BPS does not document specific rate limits. Need empirical testing and implement conservative defaults.
 
-7. **Workers: shared vs self-deploy model?** Apakah kita host public instance atau hanya provide self-deploy template? Recommendation: keduanya — public demo + self-deploy for production.
+7. **Workers: shared vs self-deploy model?** Do we host a public instance or only provide a self-deploy template? Recommendation: both — public demo + self-deploy for production.
 
-8. **Workers: `@cloudflare/agents` SDK vs raw MCP SDK?** Cloudflare punya Agents SDK yang lebih integrated dengan Workers ecosystem, tapi menambah vendor lock-in. Perlu evaluate trade-off.
+8. **Workers: `@cloudflare/agents` SDK vs raw MCP SDK?** Cloudflare has an Agents SDK that is more integrated with the Workers ecosystem, but adds vendor lock-in. Need to evaluate the trade-off.
 
-9. **mcp-remote compatibility:** Untuk clients yang belum native support Streamable HTTP, perlu test `mcp-remote` bridge compatibility.
+9. **mcp-remote compatibility:** For clients that don't natively support Streamable HTTP, need to test `mcp-remote` bridge compatibility.
 
 ---
 

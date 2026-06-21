@@ -36,6 +36,18 @@ import type {
   BpsCsaTableDetail,
   BpsCensusEvent,
   BpsCensusTopic,
+  BpsCensusArea,
+  BpsCensusDataset,
+  BpsCensusDataRecord,
+  BpsSimdasiArea,
+  BpsSimdasiSubject,
+  BpsSimdasiMasterTable,
+  BpsSimdasiTable,
+  BpsSimdasiTableDetail,
+  BpsSdgsVariable,
+  BpsSddsVariable,
+  BpsClassificationEntry,
+  BpsClassificationDetail,
   PageInfo,
 } from "./types.js";
 import { BpsApiError, BpsAuthError, BpsNotFoundError } from "../utils/error.js";
@@ -521,6 +533,15 @@ export class BpsClient {
     return res.data;
   }
 
+  async listNewsCategories(domain?: string): Promise<Array<{ newscat_id: number; newscat_name: string }>> {
+    const res = await this.listRequest<{ data: [PageInfo, Array<{ newscat_id: number; newscat_name: string }>] }>(
+      MODELS.NEWS_CATEGORY,
+      { domain },
+      24 * 60 * 60
+    );
+    return this.extractPaginated(res).data;
+  }
+
   // ========== Glossary (Glosarium) ==========
 
   async listGlossary(
@@ -534,6 +555,61 @@ export class BpsClient {
       24 * 60 * 60
     );
     return this.extractPaginated(res);
+  }
+
+  async getGlossaryDetail(id: string): Promise<BpsGlossaryTerm> {
+    const res = await this.viewRequest<{ data: BpsGlossaryTerm }>(
+      MODELS.GLOSSARY,
+      { id },
+      24 * 60 * 60
+    );
+    return res.data;
+  }
+
+  // ========== SDGs (Sustainable Development Goals) ==========
+
+  async listSdgs(goal?: number): Promise<{ data: BpsSdgsVariable[]; page?: PageInfo }> {
+    const res = await this.listRequest<{ data: [PageInfo, BpsSdgsVariable[]] }>(
+      MODELS.SDGS,
+      { domain: "0000", goal },
+      24 * 60 * 60
+    );
+    return this.extractPaginated(res);
+  }
+
+  // ========== SDDS (Special Data Dissemination Standard) ==========
+
+  async listSdds(): Promise<{ data: BpsSddsVariable[]; page?: PageInfo }> {
+    const res = await this.listRequest<{ data: [PageInfo, BpsSddsVariable[]] }>(
+      MODELS.SDDS,
+      { domain: "0000" },
+      24 * 60 * 60
+    );
+    return this.extractPaginated(res);
+  }
+
+  // ========== Statistical Classifications (KBLI/KBKI) ==========
+
+  async listClassifications(
+    model: string,
+    level?: string,
+    page?: number
+  ): Promise<{ data: BpsClassificationEntry[]; page?: PageInfo }> {
+    const res = await this.listRequest<{ data: [PageInfo, BpsClassificationEntry[]] }>(
+      model,
+      { domain: "0000", level, page },
+      24 * 60 * 60
+    );
+    return this.extractPaginated(res);
+  }
+
+  async getClassificationDetail(model: string, id: string): Promise<BpsClassificationDetail> {
+    const res = await this.viewRequest<{ data: BpsClassificationDetail }>(
+      model,
+      { domain: "0000", id, lang: "ind" },
+      24 * 60 * 60
+    );
+    return res.data;
   }
 
   // ========== CSA (Classification of Statistical Activities) ==========
@@ -594,6 +670,103 @@ export class BpsClient {
     const cacheKey = `census:topics:${kegiatan}`;
     const res = await this.fetchJson<{ data: [PageInfo, BpsCensusTopic[]] }>(url, cacheKey, 24 * 60 * 60);
     return this.extractPaginated(res).data;
+  }
+
+  async listCensusAreas(kegiatan: string): Promise<BpsCensusArea[]> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "sensus", { id: 39, Kegiatan: kegiatan, ...auth });
+    const cacheKey = `census:areas:${kegiatan}`;
+    const res = await this.fetchJson<{ data: [PageInfo, BpsCensusArea[]] }>(url, cacheKey, 24 * 60 * 60);
+    return this.extractPaginated(res).data;
+  }
+
+  async listCensusDatasets(kegiatan: string, topik: number): Promise<BpsCensusDataset[]> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "sensus", { id: 40, Kegiatan: kegiatan, Topik: topik, ...auth });
+    const cacheKey = `census:datasets:${kegiatan}:${topik}`;
+    const res = await this.fetchJson<{ data: [PageInfo, BpsCensusDataset[]] }>(url, cacheKey, 24 * 60 * 60);
+    return this.extractPaginated(res).data;
+  }
+
+  async getCensusData(kegiatan: string, wilayahSensus: string, dataset: string): Promise<BpsCensusDataRecord[]> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "sensus", { id: 41, Kegiatan: kegiatan, Wilayah_sensus: wilayahSensus, Dataset: dataset, ...auth });
+    const cacheKey = `census:data:${kegiatan}:${wilayahSensus}:${dataset}`;
+    const res = await this.fetchJson<{ data: BpsCensusDataRecord[] }>(url, cacheKey, 24 * 60 * 60);
+    return res.data;
+  }
+
+  // ========== SIMDASI via Interoperabilitas ==========
+
+  async listSimdasiProvinceMfds(): Promise<BpsSimdasiArea[]> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "simdasi", { id: 26, ...auth });
+    const cacheKey = `simdasi:provinces`;
+    const res = await this.fetchJson<{ data: [PageInfo, BpsSimdasiArea[]] }>(url, cacheKey, 24 * 60 * 60);
+    return this.extractPaginated(res).data;
+  }
+
+  async listSimdasiRegencyMfds(parent: string): Promise<BpsSimdasiArea[]> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "simdasi", { id: 27, parent, ...auth });
+    const cacheKey = `simdasi:regencies:${parent}`;
+    const res = await this.fetchJson<{ data: [PageInfo, BpsSimdasiArea[]] }>(url, cacheKey, 24 * 60 * 60);
+    return this.extractPaginated(res).data;
+  }
+
+  async listSimdasiDistrictMfds(parent: string): Promise<BpsSimdasiArea[]> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "simdasi", { id: 28, parent, ...auth });
+    const cacheKey = `simdasi:districts:${parent}`;
+    const res = await this.fetchJson<{ data: [PageInfo, BpsSimdasiArea[]] }>(url, cacheKey, 24 * 60 * 60);
+    return this.extractPaginated(res).data;
+  }
+
+  async listSimdasiSubjects(wilayah: string): Promise<BpsSimdasiSubject[]> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "simdasi", { id: 22, wilayah, ...auth });
+    const cacheKey = `simdasi:subjects:${wilayah}`;
+    const res = await this.fetchJson<{ data: [PageInfo, BpsSimdasiSubject[]] }>(url, cacheKey, 24 * 60 * 60);
+    return this.extractPaginated(res).data;
+  }
+
+  async listSimdasiMasterTables(): Promise<BpsSimdasiMasterTable[]> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "simdasi", { id: 34, ...auth });
+    const cacheKey = `simdasi:master-tables`;
+    const res = await this.fetchJson<{ data: [PageInfo, BpsSimdasiMasterTable[]] }>(url, cacheKey, 24 * 60 * 60);
+    return this.extractPaginated(res).data;
+  }
+
+  async getSimdasiMasterTableDetail(idTabel: string): Promise<unknown> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "simdasi", { id: 36, id_tabel: idTabel, ...auth });
+    const cacheKey = `simdasi:master-table-detail:${idTabel}`;
+    return this.fetchJson<{ data: unknown }>(url, cacheKey, 24 * 60 * 60);
+  }
+
+  async listSimdasiTablesByArea(wilayah: string): Promise<BpsSimdasiTable[]> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "simdasi", { id: 23, wilayah, ...auth });
+    const cacheKey = `simdasi:tables:${wilayah}`;
+    const res = await this.fetchJson<{ data: [PageInfo, BpsSimdasiTable[]] }>(url, cacheKey, 24 * 60 * 60);
+    return this.extractPaginated(res).data;
+  }
+
+  async listSimdasiTablesByAreaAndSubject(wilayah: string, idSubjek: string): Promise<BpsSimdasiTable[]> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "simdasi", { id: 24, wilayah, id_subjek: idSubjek, ...auth });
+    const cacheKey = `simdasi:tables:${wilayah}:${idSubjek}`;
+    const res = await this.fetchJson<{ data: [PageInfo, BpsSimdasiTable[]] }>(url, cacheKey, 24 * 60 * 60);
+    return this.extractPaginated(res).data;
+  }
+
+  async getSimdasiTableDetail(wilayah: string, tahun: number, idTabel: string): Promise<BpsSimdasiTableDetail> {
+    const auth = await this.authParams();
+    const url = buildInteropUrl(this.baseUrl, "simdasi", { id: 25, wilayah, Tahun: tahun, id_tabel: idTabel, ...auth });
+    const cacheKey = `simdasi:table-detail:${wilayah}:${tahun}:${idTabel}`;
+    const res = await this.fetchJson<{ data: BpsSimdasiTableDetail }>(url, cacheKey, 6 * 60 * 60);
+    return res.data;
   }
 
   // ========== Search ==========

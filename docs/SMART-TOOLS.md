@@ -1,33 +1,33 @@
-# Smart Tools — Detail Logic & Implementasi
+# Smart Tools — Detail Logic & Implementation
 
-Dokumentasi lengkap logic internal smart tools. Setiap tool bukan sekadar wrapper BPS WebAPI — ada intelligence layer untuk mengatasi inkonsistensi dan kompleksitas struktur data BPS.
+Complete documentation of internal smart tools logic. Each tool is not just a BPS WebAPI wrapper — there is an intelligence layer to handle inconsistencies and complexity of BPS data structures.
 
-## Daftar Isi
+## Table of Contents
 
-1. [find_data](#find_data) — Cari & ambil data dalam 1 langkah
-2. [get_trend](#get_trend) — Tren multi-tahun
-3. [compare_data](#compare_data) — Perbandingan antar wilayah
-4. [get_ranking](#get_ranking) — Peringkat provinsi
-5. [Helper Functions](#helper-functions) — Fungsi-fungsi pendukung
+1. [find_data](#find_data) — Search & retrieve data in 1 step
+2. [get_trend](#get_trend) — Multi-year trend
+3. [compare_data](#compare_data) — Cross-region comparison
+4. [get_ranking](#get_ranking) — Provincial ranking
+5. [Helper Functions](#helper-functions) — Supporting functions
 
 ---
 
 ## find_data
 
 **File:** `src/tools/smart.tools.ts`  
-**Fungsi:** `registerSmartTools` → tool "find_data"
+**Function:** `registerSmartTools` → tool "find_data"
 
-### Tujuan
+### Purpose
 
-Menggabungkan 5-9 langkah API menjadi 1 tool call: resolve wilayah → cari variabel → resolve periode → ambil data → format.
+Combines 5-9 API steps into 1 tool call: resolve region → find variable → resolve period → fetch data → format.
 
-### Parameter
+### Parameters
 
-| Param | Tipe | Default | Deskripsi |
+| Param | Type | Default | Description |
 |-------|------|---------|-----------|
-| `query` | string | required | Deskripsi data (misal: "kemiskinan", "IPM", "pengangguran") |
-| `region` | string | "Indonesia" | Nama wilayah (fuzzy matching) |
-| `year` | string? | - | Tahun, bisa multi: "2023" atau "2020,2021,2022" |
+| `query` | string | required | Data description (e.g.: "poverty", "HDI", "unemployment") |
+| `region` | string | "Indonesia" | Region name (fuzzy matching) |
+| `year` | string? | - | Year, can be multi: "2023" or "2020,2021,2022" |
 
 ### Flow Detail
 
@@ -35,17 +35,17 @@ Menggabungkan 5-9 langkah API menjadi 1 tool call: resolve wilayah → cari vari
 ┌─ Step 0: Intent Detection ───────────────────────────────────┐
 │ detectIntent(query, region, year)                             │
 │                                                               │
-│ Pattern matching untuk 6 intent:                             │
+│ Pattern matching for 6 intents:                              │
 │ - single_value: default                                      │
-│ - comparison: "bandingkan", "vs", "antara X dan Y"           │
-│ - trend: "tren", "2019-2024", "dari...sampai"                │
-│ - ranking: "peringkat", "10 provinsi termiskin"              │
-│ - table: "pemeluk agama", "per kecamatan", "distribusi"      │
-│ - publication: "publikasi", "BRS", "cari teks di dalam"      │
+│ - comparison: "compare", "vs", "between X and Y"             │
+│ - trend: "trend", "2019-2024", "from...to"                   │
+│ - ranking: "ranking", "10 poorest provinces"                 │
+│ - table: "religious affiliation", "per sub-district", "distribution"│
+│ - publication: "publication", "BRS", "search text inside"    │
 │                                                               │
 │ Auto-extract params:                                         │
 │ - Year range: "2019-2024" → {year: "2019,2024"}             │
-│ - Comparison: "antara jatim dan jabar" → {region1, region2}  │
+│ - Comparison: "between east java and west java" → {region1, region2}│
 │                                                               │
 │ Output: {intent, confidence, suggestedTool, hints}           │
 └───────────────────────────────────────────────────────────────┘
@@ -64,7 +64,7 @@ Menggabungkan 5-9 langkah API menjadi 1 tool call: resolve wilayah → cari vari
 │ Layer 1: KNOWN_VARS (hardcoded, 0 I/O)                       │
 │   normalizeKeyword("angka kemiskinan") → "kemiskinan"         │
 │   resolveCanonical("kemiskinan") → "miskin"                   │
-│   KNOWN_VARS["miskin"] → var_id 184 ✓ (hanya domain 0000)    │
+│   KNOWN_VARS["miskin"] → var_id 184 ✓ (only domain 0000)     │
 │                                                               │
 │ Layer 2: Persistent Store (1 read I/O)                        │
 │   store.get("miskin:3500") → {var_id:184, title:...}          │
@@ -73,18 +73,18 @@ Menggabungkan 5-9 langkah API menjadi 1 tool call: resolve wilayah → cari vari
 │   → getSubjectIdsForKeyword("miskin") → [23]                 │
 │   → listSubjects(3500) → match title → more subject IDs      │
 │   → listVariables per subject (max 5 subjects)               │
-│   → computeRelevanceScore() per variabel                     │
+│   → computeRelevanceScore() per variable                     │
 │   → Sort by score, return best                               │
-│   → learnVar() → simpan ke store untuk next time             │
+│   → learnVar() → save to store for next time                 │
 │                                                               │
 │ Fallback 1: Strategic Indicators                              │
-│   Jika Layer 1-3 gagal → cek list_strategic_indicators       │
-│   Match keyword terhadap title indikator strategis            │
+│   If Layer 1-3 fail → check list_strategic_indicators        │
+│   Match keyword against strategic indicator title             │
 │                                                               │
 │ Fallback 2: Static Tables                                    │
-│   Jika Strategic Indicators gagal → list_static_tables(kw)   │
+│   If Strategic Indicators fail → list_static_tables(kw)      │
 │   Pick best match → get_static_table() → return HTML table   │
-│   (Ini yang menangani query seperti "pemeluk agama")         │
+│   (This handles queries like "religious affiliation")        │
 └───────────────────────────────────────────────────────────────┘
           │
           ▼
@@ -99,7 +99,7 @@ Menggabungkan 5-9 langkah API menjadi 1 tool call: resolve wilayah → cari vari
 │    → learnPeriod(184, "3500", "2023", "123")                 │
 │    → Return "123"                                            │
 │                                                               │
-│ 3. Tanpa year: ambil periods[0] (terbaru)                    │
+│ 3. Without year: take periods[0] (latest)                    │
 └───────────────────────────────────────────────────────────────┘
           │
           ▼
@@ -107,18 +107,18 @@ Menggabungkan 5-9 langkah API menjadi 1 tool call: resolve wilayah → cari vari
 │ getDynamicData("3500", "184", "123")                         │
 │                                                               │
 │ Self-Healing:                                                │
-│ Jika datacontent kosong DAN var dari learning store:          │
+│ If datacontent is empty AND var from learning store:         │
 │   → invalidateVar("miskin", "3500")                          │
 │   → invalidatePeriod(184, "3500", "2023")                    │
 │   → Retry: fullSearchVar() → resolvePeriod() → getData()    │
 │                                                               │
-│ Fallback untuk kab/kota (4 digit, tidak berakhir "00"):      │
-│   → Hitung parent: domain.slice(0,2)+"00" (3517→3500)       │
-│   → lookupVar/fullSearchVar di parent domain                 │
-│   → Fetch data dari parent domain                            │
-│   → Return dengan note "Data dari provinsi induk"            │
+│ Fallback for regency/city (4 digits, not ending "00"):      │
+│   → Calculate parent: domain.slice(0,2)+"00" (3517→3500)    │
+│   → lookupVar/fullSearchVar in parent domain                 │
+│   → Fetch data from parent domain                            │
+│   → Return with note "Data from parent province"             │
 │                                                               │
-│ Fallback static table (jika dynamic data tetap kosong):      │
+│ Fallback static table (if dynamic data still empty):        │
 │   → list_static_tables(domain, kw)                           │
 │   → Pick best match → get_static_table() → return            │
 └───────────────────────────────────────────────────────────────┘
@@ -132,72 +132,72 @@ Menggabungkan 5-9 langkah API menjadi 1 tool call: resolve wilayah → cari vari
 │ → Generate result hints (generateResultHints)                │
 │                                                               │
 │ Result Hints:                                                │
-│ - Untuk kab/kota: "💡 Data provinsi: find_data(...)"         │
-│ - Untuk agama: "💡 Breakdown: list_static_tables(...)"       │
-│ - Untuk miskin: "💡 Gini rasio: get_dynamic_data(var="98")"  │
-│ - Untuk pengangguran: "💡 TPak: find_variable(...)"          │
+│ - For regency/city: "💡 Province data: find_data(...)"       │
+│ - For religion: "💡 Breakdown: list_static_tables(...)"      │
+│ - For poverty: "💡 Gini ratio: get_dynamic_data(var="98")"  │
+│ - For unemployment: "💡 TPAK: find_variable(...)"           │
 │                                                               │
-│ Success → learnVar() (simpan mapping untuk next time)        │
+│ Success → learnVar() (save mapping for next time)            │
 └───────────────────────────────────────────────────────────────┘
 ```
 
 ### Relevance Scoring (`computeRelevanceScore`)
 
-Ketika full search menemukan banyak variabel, scoring menentukan mana yang paling relevan:
+When full search finds many variables, scoring determines which is most relevant:
 
 ```
-+100  exact phrase match di title ("penduduk miskin" ada di title)
-+50   title dimulai dengan query
-+40   bonus jika SEMUA kata query match
-+30   per kata yang match di title
-+20   title mengandung "tingkat"/"persentase"/"jumlah" (indikator utama)
-+15   per kata yang match di sub_name
-+15   title pendek (<60 char, lebih general)
--15   title punya >1 "menurut" (breakdown, kurang berguna)
--20   title panjang (>100 char, terlalu spesifik)
++100  exact phrase match in title ("penduduk miskin" in title)
++50   title starts with query
++40   bonus if ALL query words match
++30   per word that matches in title
++20   title contains "tingkat"/"persentase"/"jumlah" (main indicator)
++15   per word that matches in sub_name
++15   short title (<60 chars, more general)
+-15   title has >1 "menurut" (breakdown, less useful)
+-20   long title (>100 chars, too specific)
 
-Heuristik khusus:
-+40   query="miskin" + title="persentase" (prefer persentase)
+Special heuristics:
++40   query="miskin" + title="persentase" (prefer percentage)
 +40   query="jumlah miskin" + title="jumlah" (respect "jumlah" keyword)
-+50   query="agama" + title="menurut agama" (prefer agama breakdown)
-+30   query="agama" + title="jumlah"/"penduduk"
-+60   query minta kab/kota + title mengandung "kabupaten"
++50   query="religion" + title="menurut agama" (prefer religion breakdown)
++30   query="religion" + title="jumlah"/"penduduk"
++60   query asks for regency/city + title contains "kabupaten"
 ```
 
 ### HTTP Calls Summary
 
-| Skenario | HTTP Calls |
+| Scenario | HTTP Calls |
 |----------|-----------|
 | Known var + known period (warm) | 1 |
 | Known var + unknown period | 2 |
-| Unknown var (cold) | 5-9 (lalu learn) |
-| Repeat query (setelah learn) | 1-2 |
+| Unknown var (cold) | 5-9 (then learn) |
+| Repeat query (after learn) | 1-2 |
 
 ---
 
 ## get_trend
 
 **File:** `src/tools/analysis.tools.ts`  
-**Fungsi:** `registerAnalysisTools` → tool "get_trend"
+**Function:** `registerAnalysisTools` → tool "get_trend"
 
-### Tujuan
+### Purpose
 
-Ambil data time-series untuk satu wilayah dalam rentang tahun tertentu, format sebagai tabel tren dengan persentase perubahan.
+Retrieve time-series data for one region within a specific year range, formatted as a trend table with percentage change.
 
-### Parameter
+### Parameters
 
-| Param | Tipe | Default | Deskripsi |
+| Param | Type | Default | Description |
 |-------|------|---------|-----------|
-| `query` | string | required | Indikator (misal: "IPM", "kemiskinan") |
-| `region` | string | "Indonesia" | Nama wilayah |
-| `start_year` | string | "2019" | Tahun awal |
-| `end_year` | string | "2024" | Tahun akhir |
+| `query` | string | required | Indicator (e.g.: "HDI", "poverty") |
+| `region` | string | "Indonesia" | Region name |
+| `start_year` | string | "2019" | Start year |
+| `end_year` | string | "2024" | End year |
 
 ### Flow Detail
 
 ```
 ┌─ Step 1: Resolve Domain ─────────────────────────────────────┐
-│ Sama dengan find_data Step 1                                  │
+│ Same as find_data Step 1                                      │
 │ "Indonesia" → "0000", "Jawa Timur" → "3500"                  │
 └───────────────────────────────────────────────────────────────┘
          │
@@ -206,9 +206,9 @@ Ambil data time-series untuk satu wilayah dalam rentang tahun tertentu, format s
 │ resolveVariable(client, store, "IPM", "0000")                │
 │ → lookupVar() → KNOWN_VARS["ipm"] → var_id 413              │
 │                                                               │
-│ Jika miss → full search dengan:                              │
+│ If miss → full search with:                                 │
 │   - Synonym expansion: "ipm" → ["ipm","pembangunan manusia"] │
-│   - Variable scoring (prefer non-lama, prefer aggregate)     │
+│   - Variable scoring (prefer non-old, prefer aggregate)      │
 └───────────────────────────────────────────────────────────────┘
          │
          ▼
@@ -219,18 +219,18 @@ Ambil data time-series untuk satu wilayah dalam rentang tahun tertentu, format s
 │ Build yearToPeriod map:                                      │
 │   "2019"→"119", "2020"→"120", ..., "2024"→"124"             │
 │                                                               │
-│ ⚠️ FALLBACK: Jika periods kosong:                            │
+│ ⚠️ FALLBACK: If periods is empty:                            │
 │   → invalidateVar("IPM", "0000", store)                      │
-│   → resolveVariableFullSearch() — cari var lain              │
-│   → listPeriods() lagi dengan var baru                       │
+│   → resolveVariableFullSearch() — find another var           │
+│   → listPeriods() again with new var                         │
 └───────────────────────────────────────────────────────────────┘
          │
          ▼
 ┌─ Step 4: Fetch Data (Multi-Period) ──────────────────────────┐
 │ getDynamicData("0000", "413", "119,120,121,122,123,124")     │
 │                                                               │
-│ Response berisi:                                             │
-│ - datacontent: {"999941301190": 71.92, ...} (ratusan entry)  │
+│ Response contains:                                           │
+│ - datacontent: {"999941301190": 71.92, ...} (hundreds of entries)│
 │ - tahun: [{val:119, label:"2019"}, ...]                      │
 │ - vervar: [{val:1100, label:"ACEH"}, ..., {val:9999,...}]    │
 └───────────────────────────────────────────────────────────────┘
@@ -238,91 +238,91 @@ Ambil data time-series untuk satu wilayah dalam rentang tahun tertentu, format s
          ▼
 ┌─ Step 5: Parse Datacontent — CRITICAL LOGIC ─────────────────┐
 │                                                               │
-│ 5a. Build period label map dari response.tahun               │
+│ 5a. Build period label map from response.tahun               │
 │     {119: "2019", 120: "2020", ..., 124: "2024"}            │
 │                                                               │
 │ 5b. Find aggregate vervar                                    │
-│     Prioritas:                                               │
-│     1. vervar "9999" atau label contains "indonesia"         │
-│     2. vervar dengan label <b>...</b> (bold = aggregate)     │
+│     Priority:                                                │
+│     1. vervar "9999" or label contains "indonesia"           │
+│     2. vervar with label <b>...</b> (bold = aggregate)       │
 │                                                               │
 │ 5c. Filter datacontent                                       │
-│     - Hanya ambil keys yang mengandung aggregate vervar      │
-│     - Contoh: filter keys containing "9999"                  │
+│     - Only take keys that contain the aggregate vervar       │
+│     - Example: filter keys containing "9999"                 │
 │       "999941301190" ✓ (INDONESIA, 2019)                     │
 │       "110041301190" ✗ (ACEH, 2019)                          │
 │                                                               │
 │ 5d. Match period IDs — LONGEST FIRST                         │
-│     Sort period IDs: ["124","123","122","121","120","119"]    │
-│     (longest first untuk hindari collision)                   │
+│     Sort period IDs: ["124","123","122","121","120","119"]   │
+│     (longest first to avoid collision)                       │
 │                                                               │
-│     Problem tanpa longest-first:                             │
+│     Problem without longest-first:                           │
 │       key "999941301120" contains "120" → match period 120   │
-│       TAPI juga contains "112" → false match period 112!     │
+│       BUT also contains "112" → false match period 112!      │
 │                                                               │
-│     Dengan longest-first:                                    │
-│       "124" dicek duluan → match "...1240" → 2024            │
-│       "123" dicek → match "...1230" → 2023                   │
-│       dst.                                                   │
+│     With longest-first:                                      │
+│       "124" checked first → match "...1240" → 2024           │
+│       "123" checked → match "...1230" → 2023                 │
+│       etc.                                                   │
 │                                                               │
 │ 5e. Filter year range                                        │
-│     Hanya simpan data dalam range start_year..end_year       │
-│     (API mungkin return lebih banyak periode)                │
+│     Only keep data within range start_year..end_year         │
+│     (API might return more periods than requested)           │
 │                                                               │
 │ 5f. Deduplicate                                              │
-│     Satu tahun = satu nilai (ambil match pertama)            │
+│     One year = one value (take first match)                  │
 └───────────────────────────────────────────────────────────────┘
          │
          ▼
 ┌─ Step 6: Format Output ──────────────────────────────────────┐
 │ Sort by year ascending                                       │
-│ Hitung perubahan (%) per tahun: (current-prev)/prev * 100    │
-│ Hitung total tren: (last-first)/first * 100                  │
+│ Calculate change (%) per year: (current-prev)/prev * 100     │
+│ Calculate total trend: (last-first)/first * 100              │
 │                                                               │
 │ Output:                                                      │
-│ | Tahun | Nilai | Perubahan |                                │
+│ | Year | Value | Change |                                    │
 │ | 2019  | 71,92 | -         |                                │
 │ | 2020  | 71,94 | +0.0%     |                                │
 │ | 2024  | 74,2  | +0.9%     |                                │
-│ Tren: naik 3.2% dari 2019 ke 2024                           │
+│ Trend: up 3.2% from 2019 to 2024                            │
 └───────────────────────────────────────────────────────────────┘
 ```
 
 ### Datacontent Key Format
 
-BPS datacontent key adalah concatenated numeric IDs:
+BPS datacontent key is concatenated numeric IDs:
 
 ```
 Key: "999941301240"
       ├──┤├─┤├┤├─┤├┤
-      │    │  │  │  └─ trailing (biasanya 0)
+      │    │  │  │  └─ trailing (usually 0)
       │    │  │  └──── period_id (124 = 2024)
-      │    │  └─────── turvar (0 = tidak ada turunan)
+      │    │  └─────── turvar (0 = no derivative)
       │    └────────── var_id (413)
       └─────────────── vervar (9999 = INDONESIA)
 ```
 
-**Catatan:** Format ini tidak didokumentasikan resmi oleh BPS. Ditemukan dari reverse-engineering response API. Panjang tiap segment bisa bervariasi tergantung jumlah digit ID.
+**Note:** This format is not officially documented by BPS. Discovered from reverse-engineering the API response. Length of each segment can vary depending on the number of ID digits.
 
-### Kenapa Perlu Longest-First Matching
+### Why Longest-First Matching is Needed
 
 ```
 Period IDs: 112, 119, 120, 121, 122, 123, 124
 
-Key "999941301120" (seharusnya period 112, tahun 2012):
+Key "999941301120" (should be period 112, year 2012):
   - contains("120") → TRUE (false positive! match period 120 = 2020)
   - contains("112") → TRUE (correct match)
 
-Dengan sort longest-first dan break setelah match pertama:
+With longest-first sort and break after first match:
   - "124" → not found
   - "123" → not found
   - "122" → not found
   - "121" → not found
-  - "120" → found! → WRONG (ini sebenarnya period 112)
+  - "120" → found! → WRONG (this is actually period 112)
 
-SOLUSI: Sort response period IDs (bukan request period IDs) longest-first.
-Karena semua period IDs di response punya panjang sama (3 digit),
-kita filter berdasarkan year range di step 5e sebagai safety net.
+SOLUTION: Sort response period IDs (not request period IDs) longest-first.
+Since all period IDs in the response have the same length (3 digits),
+we filter based on year range in step 5e as a safety net.
 ```
 
 ---
@@ -330,113 +330,113 @@ kita filter berdasarkan year range di step 5e sebagai safety net.
 ## compare_data
 
 **File:** `src/tools/analysis.tools.ts`  
-**Fungsi:** `registerAnalysisTools` → tool "compare_data"
+**Function:** `registerAnalysisTools` → tool "compare_data"
 
-### Tujuan
+### Purpose
 
-Bandingkan satu indikator antara 2+ wilayah. Setiap wilayah di-resolve dan di-fetch secara independen.
+Compare one indicator across 2+ regions. Each region is resolved and fetched independently.
 
-### Parameter
+### Parameters
 
-| Param | Tipe | Default | Deskripsi |
+| Param | Type | Default | Description |
 |-------|------|---------|-----------|
-| `query` | string | required | Indikator (misal: "IPM", "pengangguran") |
-| `regions` | string | required | Nama wilayah dipisah koma |
-| `year` | string? | - | Tahun data |
+| `query` | string | required | Indicator (e.g.: "HDI", "unemployment") |
+| `regions` | string | required | Region names separated by comma |
+| `year` | string? | - | Data year |
 
 ### Flow Detail
 
 ```
-┌─ Per Wilayah: fetchDataForDomain() ──────────────────────────┐
+┌─ Per Region: fetchDataForDomain() ──────────────────────────┐
 │                                                               │
 │ Input: query="pengangguran", domain="3600", year="2024"      │
 │                                                               │
 │ 1. resolveVariable(client, store, "pengangguran", "3600")    │
 │    → lookupVar() → check store                               │
-│    → Jika miss: full search di subject 6 (Tenaga Kerja)      │
+│    → If miss: full search in subject 6 (Labor)              │
 │    → Scoring: prefer "Kabupaten/Kota" variant                │
 │    → Return: var_id=157 "TPT Menurut Kabupaten/Kota"         │
 │                                                               │
 │ 2. listPeriods("3600", 157)                                  │
-│    → Cari period yang label-nya contains "2024"              │
+│    → Find period whose label contains "2024"                 │
 │                                                               │
-│    ⚠️ FALLBACK 1: Jika periods kosong                        │
+│    ⚠️ FALLBACK 1: If periods is empty                        │
 │    → invalidateVar() → resolveVariableFullSearch()            │
 │                                                               │
-│    ⚠️ FALLBACK 2: Jika tahun tidak ditemukan di periods      │
+│    ⚠️ FALLBACK 2: If year not found in periods              │
 │    → invalidateVar() → resolveVariableFullSearch()            │
-│    → listPeriods() lagi, cari tahun di var baru              │
+│    → listPeriods() again, find year in new var               │
 │                                                               │
 │ 3. getDynamicData("3600", "157", periodParam)                │
 │                                                               │
-│ 4. Extract AGGREGATE value dari datacontent                  │
-│    → Cari aggregate vervar:                                  │
-│      a. "9999" atau label "indonesia" (nasional)             │
-│      b. domain[0:2]+"99" (misal "3699" untuk domain 3600)   │
+│ 4. Extract AGGREGATE value from datacontent                  │
+│    → Find aggregate vervar:                                  │
+│      a. "9999" or label "indonesia" (national)              │
+│      b. domain[0:2]+"99" (e.g. "3699" for domain 3600)      │
 │      c. label startsWith "<b>" (bold = aggregate)            │
 │      d. label contains "provinsi"                            │
-│    → Filter datacontent keys yang mengandung aggregate ID    │
-│    → Ambil nilai pertama yang match                          │
-│    → Fallback: values[0] jika tidak ada aggregate            │
+│    → Filter datacontent keys that contain the aggregate ID   │
+│    → Take the first matching value                           │
+│    → Fallback: values[0] if no aggregate found              │
 │                                                               │
-│ 5. Return: { value: "6,68 persen", varTitle: "TPT..." }      │
+│ 5. Return: { value: "6.68 percent", varTitle: "TPT..." }     │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-### Variable Scoring (dalam `resolveVariable`)
+### Variable Scoring (in `resolveVariable`)
 
-Ketika ada multiple variabel yang match keyword, scoring menentukan pilihan:
+When there are multiple variables matching the keyword, scoring determines the selection:
 
 ```typescript
 score(variable) = {
-  +10  jika title contains "metode lama"        // HINDARI
-  +5   jika title contains "golongan umur"      // disagregasi
-  +5   jika title contains "lapangan usaha"     // disagregasi
-  +5   jika title contains "klasifikasi"        // disagregasi
-  +5   jika title contains "pendidikan tertinggi" // disagregasi
-  -2   jika title contains "metode baru"        // PREFER
-  -3   jika title contains "kabupaten"          // punya aggregate
-  -3   jika title contains "provinsi"           // punya aggregate
+  +10  if title contains "metode lama"        // AVOID
+  +5   if title contains "golongan umur"      // disaggregation
+  +5   if title contains "lapangan usaha"     // disaggregation
+  +5   if title contains "klasifikasi"        // disaggregation
+  +5   if title contains "pendidikan tertinggi" // disaggregation
+  -2   if title contains "metode baru"        // PREFER
+  -3   if title contains "kabupaten"          // has aggregate
+  -3   if title contains "provinsi"           // has aggregate
 }
-// Sort ascending (score rendah = lebih baik)
+// Sort ascending (lower score = better)
 ```
 
-**Mengapa disagregasi di-deprioritize:**
+**Why disaggregation is deprioritized:**
 
-Variabel "TPT Menurut Golongan Umur" punya vervar: 15-19, 20-24, 25-29, ..., Jumlah.
-- Nilai pertama (15-19) = 38.85% (sangat tinggi, bukan TPT provinsi!)
-- Aggregate "Jumlah" ada tapi bukan entry pertama
+Variable "TPT Menurut Golongan Umur" has vervar: 15-19, 20-24, 25-29, ..., Total.
+- First value (15-19) = 38.85% (very high, not the provincial TPT!)
+- Aggregate "Total" exists but is not the first entry
 
-Variabel "TPT Menurut Kabupaten/Kota" punya vervar: Kab A, Kab B, ..., Provinsi X.
-- Entry "Provinsi X" (vervar 3699) = 6.68% (benar!)
-- Bisa dideteksi via pattern domain+"99"
+Variable "TPT Menurut Kabupaten/Kota" has vervar: Regency A, Regency B, ..., Province X.
+- Entry "Province X" (vervar 3699) = 6.68% (correct!)
+- Can be detected via domain+"99" pattern
 
 ### Aggregate Vervar Detection
 
 ```
-Domain 0000 (Nasional):
-  → vervar "9999" dengan label "<b>INDONESIA</b>"
+Domain 0000 (National):
+  → vervar "9999" with label "<b>INDONESIA</b>"
 
 Domain 3500 (Jawa Timur):
-  → vervar "35000" dengan label "Jawa Timur"
-  → ATAU vervar "3599" (pattern: domain[0:2] + "99")
-  → ATAU vervar dengan label "<b>JAWA TIMUR</b>"
+  → vervar "35000" with label "Jawa Timur"
+  → OR vervar "3599" (pattern: domain[0:2] + "99")
+  → OR vervar with label "<b>JAWA TIMUR</b>"
 
 Domain 3600 (Banten):
-  → vervar "3699" dengan label "Provinsi Banten"
+  → vervar "3699" with label "Provinsi Banten"
   → Pattern: "36" + "99" = "3699"
 ```
 
-Detection logic (prioritas):
-1. ID = "9999" atau label contains "indonesia"
-2. ID = `domain.slice(0,2) + "99"` (misal "3699")
-3. ID = `domain.slice(0,4) + "0"` (misal "35000")
+Detection logic (priority):
+1. ID = "9999" or label contains "indonesia"
+2. ID = `domain.slice(0,2) + "99"` (e.g. "3699")
+3. ID = `domain.slice(0,4) + "0"` (e.g. "35000")
 4. Label startsWith `<b>` (bold)
 5. Label contains "provinsi"
 
 ### Unit Filtering
 
-BPS kadang mengisi unit dengan "Tidak Ada Satuan" — ini di-filter dari output:
+BPS sometimes fills unit with "Tidak Ada Satuan" — this is filtered from output:
 
 ```typescript
 const unit = varData.unit && !varData.unit.toLowerCase().includes("tidak ada")
@@ -448,26 +448,26 @@ const unit = varData.unit && !varData.unit.toLowerCase().includes("tidak ada")
 ## get_ranking
 
 **File:** `src/tools/analysis.tools.ts`  
-**Fungsi:** `registerAnalysisTools` → tool "get_ranking"
+**Function:** `registerAnalysisTools` → tool "get_ranking"
 
-### Tujuan
+### Purpose
 
-Ranking/peringkat provinsi berdasarkan indikator. Selalu fetch dari domain 0000 (nasional) karena data per-provinsi tersedia di sana.
+Province ranking based on indicator. Always fetches from domain 0000 (national) because per-province data is available there.
 
-### Parameter
+### Parameters
 
-| Param | Tipe | Default | Deskripsi |
+| Param | Type | Default | Description |
 |-------|------|---------|-----------|
-| `query` | string | required | Indikator (misal: "IPM", "kemiskinan") |
-| `top_n` | number | 10 | Jumlah yang ditampilkan |
-| `order` | "highest"/"lowest" | "highest" | Urutan |
-| `year` | string? | - | Tahun (kosong = terbaru) |
+| `query` | string | required | Indicator (e.g.: "HDI", "poverty") |
+| `top_n` | number | 10 | Number to display |
+| `order` | "highest"/"lowest" | "highest" | Order |
+| `year` | string? | - | Year (empty = latest) |
 
 ### Flow Detail
 
 ```
 ┌─ Step 1: resolveVariableForRanking() ────────────────────────┐
-│ Khusus untuk ranking — prefer variabel "Menurut Provinsi"    │
+│ Specific for ranking — prefer variable "Menurut Provinsi"    │
 │                                                               │
 │ 1. Normalize keyword + stemming                              │
 │    "kemiskinan" → roots: ["kemiskinan", "miskin"]            │
@@ -476,93 +476,93 @@ Ranking/peringkat provinsi berdasarkan indikator. Selalu fetch dari domain 0000 
 │ 2. Map keyword → subject IDs                                 │
 │    "ipm" → [26], "miskin" → [23]                             │
 │                                                               │
-│ 3. Search variabel di domain 0000                            │
+│ 3. Search variable in domain 0000                            │
 │                                                               │
 │    Pass 1: "Provinsi" + keyword + "persentase/tingkat/indeks"│
-│            + validasi data recent (≥2020)                     │
-│    Contoh: "Persentase Penduduk Miskin Menurut Provinsi"     │
+│            + recent data validation (≥2020)                  │
+│    Example: "Persentase Penduduk Miskin Menurut Provinsi"    │
 │            → has "provinsi" ✓, has "miskin" ✓,               │
 │              has "persentase" ✓, period ≥2020 ✓              │
 │                                                               │
-│    Pass 2: "Provinsi" + keyword (tanpa filter tipe)          │
-│            + validasi data recent                             │
+│    Pass 2: "Provinsi" + keyword (without type filter)        │
+│            + recent data validation                          │
 │                                                               │
-│    Pass 3: keyword match saja (tanpa "Provinsi")             │
-│            → Fallback jika tidak ada var "Provinsi"          │
+│    Pass 3: keyword match only (without "Provinsi")           │
+│            → Fallback if no "Provinsi" var exists            │
 │                                                               │
 │    Fallback: resolveVariable(client, store, query, "0000")   │
 │                                                               │
-│ ⚠️ VALIDASI DATA RECENT:                                     │
-│    Setiap kandidat dicek listPeriods() — harus punya         │
-│    setidaknya 1 period dengan label ≥ "2020"                 │
-│    Ini mencegah var lama (misal var 202 hanya sampai 2013)   │
+│ ⚠️ RECENT DATA VALIDATION:                                   │
+│    Each candidate is checked with listPeriods() — must have  │
+│    at least 1 period with label ≥ "2020"                     │
+│    This prevents old var (e.g. var 202 only goes up to 2013) │
 └───────────────────────────────────────────────────────────────┘
          │
          ▼
 ┌─ Step 2: Get Period ─────────────────────────────────────────┐
-│ Jika year diberikan:                                         │
-│   listPeriods("0000", var_id) → cari label contains year    │
-│ Jika tidak:                                                  │
-│   Ambil periods[0] (terbaru, BPS sort descending)            │
+│ If year is given:                                            │
+│   listPeriods("0000", var_id) → find label contains year     │
+│ If not:                                                      │
+│   Take periods[0] (latest, BPS sorts descending)              │
 └───────────────────────────────────────────────────────────────┘
          │
          ▼
 ┌─ Step 3: Fetch Data ─────────────────────────────────────────┐
 │ getDynamicData("0000", var_id, periodParam)                  │
 │                                                               │
-│ Response.vervar bisa berisi:                                 │
-│ A) Hanya provinsi (34 entries) — jika var "Menurut Provinsi" │
-│ B) Semua kab/kota + provinsi (500+ entries) — jika var umum  │
+│ Response.vervar can contain:                                 │
+│ A) Only provinces (34 entries) — if var "Menurut Provinsi"   │
+│ B) All regencies/cities + provinces (500+ entries) — if general var│
 └───────────────────────────────────────────────────────────────┘
          │
          ▼
-┌─ Step 4: Filter Vervar ke Level Provinsi ────────────────────┐
+┌─ Step 4: Filter Vervar to Province Level ────────────────────┐
 │                                                               │
-│ Strategi:                                                    │
-│ 1. Scan semua vervar, pisahkan:                              │
-│    - vervarLabels: hanya yang label <b>...</b> (provinsi)    │
-│      KECUALI "<b>INDONESIA</b>" (nasional, bukan provinsi)   │
-│    - allVervarLabels: semua entry                            │
+│ Strategy:                                                    │
+│ 1. Scan all vervar, separate:                                │
+│    - vervarLabels: only those with <b>...</b> label (province)│
+│      EXCEPT "<b>INDONESIA</b>" (national, not province)      │
+│    - allVervarLabels: all entries                            │
 │                                                               │
-│ 2. Pilih mana yang dipakai:                                  │
-│    - Jika vervarLabels ≥ 10 entries → pakai (data kab/kota)  │
-│    - Jika < 10 → pakai allVervarLabels (sudah level provinsi)│
+│ 2. Choose which to use:                                      │
+│    - If vervarLabels ≥ 10 entries → use (regency/city data)  │
+│    - If < 10 → use allVervarLabels (already at province level)│
 │                                                               │
-│ Kenapa threshold 10:                                         │
-│   - Indonesia punya 38 provinsi                              │
-│   - Jika bold entries ≥ 10, berarti data di level kab/kota   │
-│     dan bold = aggregate provinsi                            │
-│   - Jika < 10, berarti variabel sudah di level provinsi     │
-│     (semua entry adalah provinsi, tidak perlu filter)        │
+│ Why threshold 10:                                            │
+│   - Indonesia has 38 provinces                               │
+│   - If bold entries ≥ 10, means data is at regency/city level│
+│     and bold = province aggregate                            │
+│   - If < 10, means variable is already at province level     │
+│     (all entries are provinces, no filter needed)            │
 │                                                               │
-│ 3. Strip HTML tags dari label: "<b>ACEH</b>" → "ACEH"       │
+│ 3. Strip HTML tags from label: "<b>ACEH</b>" → "ACEH"       │
 └───────────────────────────────────────────────────────────────┘
          │
          ▼
 ┌─ Step 5: Extract Values ─────────────────────────────────────┐
 │                                                               │
-│ Sort vervar IDs longest-first (hindari substring collision)  │
+│ Sort vervar IDs longest-first (avoid substring collision)    │
 │                                                               │
 │ Per datacontent entry:                                        │
-│   - Skip jika bukan number                                   │
-│   - Match key terhadap vervar IDs (longest first)            │
-│   - Deduplicate: 1 provinsi = 1 nilai                        │
+│   - Skip if not a number                                     │
+│   - Match key against vervar IDs (longest first)             │
+│   - Deduplicate: 1 province = 1 value                        │
 │                                                               │
-│ Contoh:                                                      │
+│ Example:                                                     │
 │   vervar "1100" (ACEH), key "110041301240" → match           │
-│   vervar "11" (jika ada) → TIDAK match duluan karena         │
-│   "1100" lebih panjang dan dicek lebih dulu                  │
+│   vervar "11" (if exists) → does NOT match first because     │
+│   "1100" is longer and checked first                         │
 └───────────────────────────────────────────────────────────────┘
          │
          ▼
 ┌─ Step 6: Sort & Format ──────────────────────────────────────┐
-│ Sort by value (highest/lowest sesuai parameter)              │
-│ Slice ke top_n                                               │
-│ Format sebagai numbered table                                │
+│ Sort by value (highest/lowest per parameter)                 │
+│ Slice to top_n                                               │
+│ Format as numbered table                                     │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-### Keyword Stemming (untuk `matchesTitle`)
+### Keyword Stemming (for `matchesTitle`)
 
 ```typescript
 Input: "kemiskinan"
@@ -578,7 +578,7 @@ Final roots: ["kemiskinan", "miskin", "kemiskina"]
 matchesTitle("persentase penduduk miskin") → TRUE (contains "miskin")
 ```
 
-### Synonym Expansion (untuk `matchesTitle`)
+### Synonym Expansion (for `matchesTitle`)
 
 ```typescript
 RANKING_SYNONYMS = {
@@ -602,9 +602,9 @@ matchesTitle("indeks pembangunan manusia menurut provinsi")
 
 ### `resolveVariable(client, store, query, domain)`
 
-**Lokasi:** `analysis.tools.ts` line ~395
+**Location:** `analysis.tools.ts` line ~395
 
-Fungsi inti untuk resolve keyword → var_id. Dipakai oleh `compare_data` dan `get_trend`.
+Core function for resolving keyword → var_id. Used by `compare_data` and `get_trend`.
 
 ```
 Input: query="IPM", domain="3500"
@@ -612,50 +612,50 @@ Input: query="IPM", domain="3500"
 1. lookupVar(query, domain, store)
    → normalizeKeyword("IPM") → "ipm"
    → resolveCanonical("ipm") → "ipm"
-   → KNOWN_VARS["ipm"] → var_id 413 (HANYA jika domain="0000")
-   → store.get("ipm:3500") → cached result (jika ada)
+   → KNOWN_VARS["ipm"] → var_id 413 (ONLY if domain="0000")
+   → store.get("ipm:3500") → cached result (if exists)
 
-2. Jika miss → Full Search:
-   a. Map keyword ke subjects: "ipm" → [26]
-   b. listSubjects(domain) → match title → tambah subject IDs
+2. If miss → Full Search:
+   a. Map keyword to subjects: "ipm" → [26]
+   b. listSubjects(domain) → match title → add subject IDs
    c. Per subject (max 3):
       - listVariables(domain, subId, page=1, perPage=100)
-      - Match title terhadap searchTerms (dengan synonym expansion)
+      - Match title against searchTerms (with synonym expansion)
       - Collect candidates
    d. Score & sort candidates
-   e. learnVar() → simpan ke store
+   e. learnVar() → save to store
    f. Return best candidate
 ```
 
 ### `resolveVariableFullSearch(client, store, query, domain)`
 
-**Lokasi:** `analysis.tools.ts` line ~537
+**Location:** `analysis.tools.ts` line ~537
 
-Sama seperti `resolveVariable` tapi **bypass** KNOWN_VARS dan store. Digunakan sebagai fallback ketika var dari cache terbukti tidak punya data.
+Same as `resolveVariable` but **bypasses** KNOWN_VARS and store. Used as a fallback when cached var proves to have no data.
 
-Perbedaan dengan `resolveVariable`:
-- Skip Layer 1 (KNOWN_VARS) dan Layer 2 (store)
-- Exclude variabel "metode lama" dari candidates
-- **Validasi periods exist** sebelum return (listPeriods per candidate)
-- Lebih lambat (lebih banyak API calls) tapi lebih akurat
+Differences from `resolveVariable`:
+- Skip Layer 1 (KNOWN_VARS) and Layer 2 (store)
+- Exclude "metode lama" variables from candidates
+- **Validate periods exist** before returning (listPeriods per candidate)
+- Slower (more API calls) but more accurate
 
 ### `resolveVariableForRanking(client, store, query)`
 
-**Lokasi:** `analysis.tools.ts` line ~635
+**Location:** `analysis.tools.ts` line ~635
 
-Khusus untuk `get_ranking`. Selalu search di domain 0000.
+Specific for `get_ranking`. Always searches in domain 0000.
 
-Perbedaan dengan `resolveVariable`:
-- Prefer variabel dengan "Provinsi" di title
-- Validasi data recent (≥2020)
-- Stemming bahasa Indonesia (ke-...-an → root)
+Differences from `resolveVariable`:
+- Prefer variables with "Provinsi" in title
+- Recent data validation (≥2020)
+- Indonesian language stemming (ke-...-an → root)
 - Multi-pass search (strict → relaxed)
 
 ### `fetchDataForDomain(client, store, query, domain, year)`
 
-**Lokasi:** `analysis.tools.ts` line ~467
+**Location:** `analysis.tools.ts` line ~467
 
-Dipakai oleh `compare_data`. Fetch satu nilai aggregate untuk satu domain.
+Used by `compare_data`. Fetches one aggregate value for one domain.
 
 ```
 1. resolveVariable() → var_id
@@ -666,15 +666,15 @@ Dipakai oleh `compare_data`. Fetch satu nilai aggregate untuk satu domain.
 ```
 
 Self-healing chain:
-- periods kosong → invalidate + fullSearch
-- year tidak ditemukan di periods → invalidate + fullSearch
-- datacontent kosong → return "N/A"
+- periods empty → invalidate + fullSearch
+- year not found in periods → invalidate + fullSearch
+- datacontent empty → return "N/A"
 
-### `normalizeKeyword(query)` (dari `learning.ts`)
+### `normalizeKeyword(query)` (from `learning.ts`)
 
-Menggunakan **stopwords-iso** untuk comprehensive noise removal:
+Uses **stopwords-iso** for comprehensive noise removal:
 - 758 Indonesian stopwords + 1298 English stopwords
-- BPS-specific noise: `menurut`, `berdasarkan`, `pemeluk`, `terkait`, dll
+- BPS-specific noise: `menurut`, `berdasarkan`, `pemeluk`, `terkait`, etc.
 
 ```typescript
 "berapa statistik terkait pemeluk agama di kab jombang" → "agama jombang"
@@ -683,9 +683,9 @@ Menggunakan **stopwords-iso** untuk comprehensive noise removal:
 "what is the population of jakarta" → "population jakarta"
 ```
 
-### `resolveCanonical(normalized)` (dari `learning.ts`)
+### `resolveCanonical(normalized)` (from `learning.ts`)
 
-Prefer **last matching keyword** (lebih spesifik):
+Prefer **last matching keyword** (more specific):
 
 ```typescript
 KEYWORD_ALIASES:
@@ -700,29 +700,29 @@ KEYWORD_ALIASES:
   "religi" → "agama"
   "pemeluk agama" → "agama"
 
-Word-level fallback (check dari belakang):
-  "penduduk agama" → check "agama" dulu → KEYWORD_ALIASES["agama"] → "agama"
-  (bukan "penduduk" yang menang, karena "agama" lebih spesifik)
+Word-level fallback (check from behind):
+  "penduduk agama" → check "agama" first → KEYWORD_ALIASES["agama"] → "agama"
+  (not "penduduk" that wins, because "agama" is more specific)
 ```
 
 ---
 
 ## Intent Detection (`src/services/intent-detector.ts`)
 
-### Tujuan
+### Purpose
 
-Mendeteksi intent user dari natural language query dan suggest tool terbaik + extract params.
+Detects user intent from natural language query and suggests the best tool + extracts params.
 
 ### 6 Intent Types
 
 | Intent | Pattern | Suggested Tool |
 |--------|---------|----------------|
-| `single_value` | Default (angka spesifik) | `find_data` |
-| `comparison` | "bandingkan", "vs", "antara X dan Y" | `compare_data` |
-| `trend` | "tren", "2019-2024", "dari...sampai" | `get_trend` |
-| `ranking` | "peringkat", "10 provinsi termiskin" | `get_ranking` |
-| `table` | "pemeluk agama", "per kecamatan", "distribusi" | `find_data` (static table fallback) |
-| `publication` | "publikasi", "BRS", "cari teks di dalam" | `search` |
+| `single_value` | Default (specific value) | `find_data` |
+| `comparison` | "compare", "vs", "between X and Y" | `compare_data` |
+| `trend` | "trend", "2019-2024", "from...to" | `get_trend` |
+| `ranking` | "ranking", "10 poorest provinces" | `get_ranking` |
+| `table` | "religious affiliation", "per sub-district", "distribution" | `find_data` (static table fallback) |
+| `publication` | "publication", "BRS", "search text inside" | `search` |
 
 ### Auto-Extract Params
 
@@ -736,7 +736,7 @@ Mendeteksi intent user dari natural language query dan suggest tool terbaik + ex
 
 ### Confidence Scoring
 
-Pattern matching dengan scoring:
+Pattern matching with scoring:
 - Match pattern → +30 per pattern
 - Multiple regions in query → +20
 - Year range in params → +20
@@ -744,31 +744,31 @@ Pattern matching dengan scoring:
 
 ### Result Hints (`generateResultHints`)
 
-Generate actionable next-step suggestions berdasarkan query context:
+Generate actionable next-step suggestions based on query context:
 
 ```typescript
-// Untuk kab/kota domain
-"💡 Data provinsi: find_data(query="...", region="provinsi") [domain: 3500]"
+// For regency/city domain
+"💡 Province data: find_data(query="...", region="province") [domain: 3500]"
 
-// Untuk agama query
-"💡 Breakdown detail: list_static_tables(domain="3517", keyword="agama")"
+// For religion query
+"💡 Detail breakdown: list_static_tables(domain="3517", keyword="agama")"
 
-// Untuk kemiskinan
-"💡 Gini rasio: get_dynamic_data(domain="0000", var="98")"
-"💡 Garis kemiskinan: find_variable(keyword="garis kemiskinan")"
+// For poverty
+"💡 Gini ratio: get_dynamic_data(domain="0000", var="98")"
+"💡 Poverty line: find_variable(keyword="garis kemiskinan")"
 
-// Untuk pengangguran
-"💡 TPak: find_variable(keyword="tpak", domain="...")"
+// For unemployment
+"💡 TPAK: find_variable(keyword="tpak", domain="...")"
 
-// Untuk IPM
-"💡 Data historis: get_trend(query="ipm", region="...")"
+// For HDI
+"💡 Historical data: get_trend(query="ipm", region="...")"
 ```
 
 ---
 
 ## Self-Healing Pattern
 
-Semua tools menerapkan invalidasi otomatis saat data tidak ditemukan:
+All tools implement automatic invalidation when data is not found:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -781,11 +781,11 @@ Semua tools menerapkan invalidasi otomatis saat data tidak ditemukan:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Ini memastikan:
-- Jika BPS mengubah var_id → otomatis cari yang baru
-- Jika variabel dihapus → otomatis fallback
-- Jika period structure berubah → otomatis re-learn
-- Tidak perlu manual intervention
+This ensures:
+- If BPS changes var_id → automatically find the new one
+- If variable is deleted → automatically fallback
+- If period structure changes → automatically re-learn
+- No manual intervention needed
 
 ---
 
@@ -795,16 +795,16 @@ Ini memastikan:
 Variable mappings:
   Key: "{canonical_keyword}:{domain}"
   Value: JSON {var_id, title, sub_name, unit}
-  Contoh: "miskin:3500" → {"var_id":184,"title":"Persentase Penduduk Miskin",...}
+  Example: "miskin:3500" → {"var_id":184,"title":"Persentase Penduduk Miskin",...}
 
 Period mappings:
   Key: "period:{var_id}:{domain}:{year}"
   Value: JSON {periodId, year}
-  Contoh: "period:184:3500:2023" → {"periodId":"123","year":"2023"}
+  Example: "period:184:3500:2023" → {"periodId":"123","year":"2023"}
 ```
 
 Storage locations:
-- stdio (lokal): `~/.bps-mcp/learned-vars.json`
+- stdio (local): `~/.bps-mcp/learned-vars.json`
 - Cloudflare Workers: KV Namespace
 
 ---
@@ -812,69 +812,69 @@ Storage locations:
 ## Known Limitations & Edge Cases
 
 ### 1. Datacontent Key Collision
-Period ID "120" bisa match di key yang sebenarnya mengandung period "112" (karena "1120" contains "120"). Mitigasi: longest-first matching + year range filter.
+Period ID "120" could match in a key that actually contains period "112" (because "1120" contains "120"). Mitigation: longest-first matching + year range filter.
 
-### 2. Variabel Berbeda Per Domain
-IPM di domain 0000 = var 413, di domain 3500 = var 36. KNOWN_VARS hanya untuk domain 0000. Domain lain selalu full search.
+### 2. Different Variables Per Domain
+HDI in domain 0000 = var 413, in domain 3500 = var 36. KNOWN_VARS is only for domain 0000. Other domains always do full search.
 
 ### 3. Semester Data
-Kemiskinan BPS dirilis per semester (Maret & September). `get_trend` mengambil satu nilai per tahun (match pertama), yang bisa jadi semester 1 atau 2 tergantung urutan di response.
+BPS poverty data is released per semester (March & September). `get_trend` takes one value per year (first match), which could be semester 1 or 2 depending on response order.
 
 ### 4. Bold Label Assumption
-Filtering provinsi di `get_ranking` bergantung pada BPS menggunakan `<b>` tag untuk label provinsi. Jika BPS mengubah format ini, filter akan gagal dan fallback ke semua vervar.
+Province filtering in `get_ranking` depends on BPS using `<b>` tag for province labels. If BPS changes this format, filtering will fail and fall back to all vervar.
 
 ### 5. Rate Limiting
-`resolveVariableFullSearch` bisa melakukan banyak API calls (listVariables + listPeriods per candidate). Jika BPS rate-limit, beberapa candidates mungkin di-skip.
+`resolveVariableFullSearch` may make many API calls (listVariables + listPeriods per candidate). If BPS rate-limits, some candidates may be skipped.
 
 ---
 
-## Panduan Pengembangan
+## Development Guide
 
-### Menambah Topik Baru ke KNOWN_VARS
+### Adding New Topics to KNOWN_VARS
 
 File: `src/services/learning.ts`
 
 ```typescript
-// 1. Tambah entry di KNOWN_VARS (hanya untuk domain 0000)
+// 1. Add entry in KNOWN_VARS (only for domain 0000)
 const KNOWN_VARS = {
   inflasi: [{ var_id: XXX, title: "...", sub_name: "..." }],
 };
 
-// 2. Tambah alias di KEYWORD_ALIASES
+// 2. Add alias in KEYWORD_ALIASES
 const KEYWORD_ALIASES = {
   "laju inflasi": "inflasi",
   "inflation": "inflasi",
 };
 ```
 
-### Menambah Synonym untuk Variable Search
+### Adding Synonyms for Variable Search
 
-File: `src/tools/analysis.tools.ts` — cari `SEARCH_SYNONYMS`
+File: `src/tools/analysis.tools.ts` — find `SEARCH_SYNONYMS`
 
 ```typescript
 const SEARCH_SYNONYMS: Record<string, string[]> = {
   ipm: ["ipm", "pembangunan manusia", "indeks pembangunan"],
-  // Tambah di sini:
+  // Add here:
   inflasi: ["inflasi", "consumer price", "ihk"],
 };
 ```
 
-### Menambah Disagregasi yang Di-deprioritize
+### Adding Deprioritized Disaggregation
 
-File: `src/tools/analysis.tools.ts` — cari `score` function dalam `resolveVariable`
+File: `src/tools/analysis.tools.ts` — find `score` function in `resolveVariable`
 
 ```typescript
-// Tambah pattern baru:
+// Add new pattern:
 if (t(x).includes("jenis kelamin")) s += 5;
 if (t(x).includes("status pekerjaan")) s += 5;
 ```
 
-### Menambah Aggregate Vervar Pattern
+### Adding Aggregate Vervar Pattern
 
-File: `src/tools/analysis.tools.ts` — cari `aggregateVervar` di `fetchDataForDomain`
+File: `src/tools/analysis.tools.ts` — find `aggregateVervar` in `fetchDataForDomain`
 
 ```typescript
-// Tambah pattern baru untuk domain tertentu:
+// Add new pattern for specific domain:
 if (vId === domain + "00") { aggregateVervar = vId; break; }
 ```
 
@@ -885,56 +885,56 @@ if (vId === domain + "00") { aggregateVervar = vId; break; }
 
 ### Fix #1: Data-Formatter Vervar Label Mismatch
 
-**Problem:** Semua kab/kota dilabel "Situbondo" karena `findLongestMatch` salah match vervar ID pendek (1, 2, 3...) via substring.
+**Problem:** All regencies/cities labeled "Situbondo" because `findLongestMatch` incorrectly matched short vervar IDs (1, 2, 3...) via substring.
 
-**Root cause:** Vervar IDs sequential (1=Pacitan, 2=Ponorogo, 12=Situbondo). Key `1049701250` contains "12" (Situbondo) sebagai substring, padahal sebenarnya vervar 10 (Banyuwangi).
+**Root cause:** Vervar IDs sequential (1=Pacitan, 2=Ponorogo, 12=Situbondo). Key `1049701250` contains "12" (Situbondo) as a substring, when it is actually vervar 10 (Banyuwangi).
 
-**Fix:** `resolveDatacontentKey` sekarang menggunakan positional extraction:
-1. Cari var_id di key → split key menjadi prefix (vervar) dan suffix (period/turvar)
-2. Match vervar dari prefix secara exact atau startsWith
-3. Fallback ke `findLongestMatch` jika positional gagal
+**Fix:** `resolveDatacontentKey` now uses positional extraction:
+1. Find var_id in key → split key into prefix (vervar) and suffix (period/turvar)
+2. Match vervar from prefix via exact match or startsWith
+3. Fallback to `findLongestMatch` if positional fails
 
 ### Fix #2: get_trend Provincial Aggregate
 
-**Problem:** `get_trend` di domain provinsi (3500) mengambil nilai kab/kota random, bukan aggregate provinsi.
+**Problem:** `get_trend` in provincial domain (3500) takes random regency/city values instead of provincial aggregates.
 
 **Fix:** Expanded aggregate vervar detection:
-1. `9999` atau label "indonesia" (nasional)
-2. `domain[0:2] + "99"` (misal 3599 untuk domain 3500)
-3. `domain[0:4] + "0"` (misal 35000)
-4. Label `<b>...</b>` atau contains "provinsi" atau matches `domainName`
-5. Label "jumlah" atau "total" (last resort)
+1. `9999` or label "indonesia" (national)
+2. `domain[0:2] + "99"` (e.g. 3599 for domain 3500)
+3. `domain[0:4] + "0"` (e.g. 35000)
+4. Label `<b>...</b>` or contains "provinsi" or matches `domainName`
+5. Label "jumlah" or "total" (last resort)
 
 ### Fix #3: Strategic Indicators Fallback
 
-**Problem:** Inflasi dan PDRB tidak ada di KNOWN_VARS dan var_id bervariasi per domain. `get_trend` dan `compare_data` gagal.
+**Problem:** Inflation and GDP are not in KNOWN_VARS and var_id varies per domain. `get_trend` and `compare_data` fail.
 
-**Fix:** Jika `resolveVariable` return null, fallback ke `list_strategic_indicators`:
-- Match keyword terhadap title indikator strategis
-- Format data langsung dari `ind.data` object (key=periode, value=nilai)
-- Berlaku untuk `get_trend` dan `fetchDataForDomain` (compare_data)
+**Fix:** If `resolveVariable` returns null, fallback to `list_strategic_indicators`:
+- Match keyword against strategic indicator title
+- Format data directly from `ind.data` object (key=period, value=value)
+- Applies to `get_trend` and `fetchDataForDomain` (compare_data)
 
 ### Fix #4: Respect 'jumlah' Keyword
 
-**Problem:** Scoring selalu prefer "persentase" untuk kemiskinan, bahkan jika user eksplisit minta "jumlah penduduk miskin".
+**Problem:** Scoring always prefers "persentase" for poverty, even if the user explicitly asks for "jumlah penduduk miskin".
 
-**Fix:** Cek apakah query contains "jumlah":
-- Jika ya: boost "jumlah" (+40), penalty "persentase" (-10)
-- Jika tidak: boost "persentase" (+40) seperti sebelumnya
+**Fix:** Check if query contains "jumlah":
+- If yes: boost "jumlah" (+40), penalty "persentase" (-10)
+- If not: boost "persentase" (+40) as before
 
 ### Fix #5: Domain Kab/Kota Fallback
 
-**Problem:** `find_data` di domain kab/kota (misal Surabaya=3578) sering return kosong karena variabel terbatas.
+**Problem:** `find_data` in regency/city domain (e.g. Surabaya=3578) often returns empty because of limited variables.
 
-**Fix:** Jika datacontent kosong DAN domain adalah kab/kota (4 digit, tidak berakhir "00"):
-1. Hitung parent province: `domain.slice(0,2) + "00"` (3578 → 3500)
-2. `lookupVar` atau `fullSearchVar` di parent domain
-3. Fetch data dari parent domain
-4. Return dengan note "Data diambil dari domain provinsi induk"
+**Fix:** If datacontent is empty AND domain is regency/city (4 digits, not ending in "00"):
+1. Calculate parent province: `domain.slice(0,2) + "00"` (3578 → 3500)
+2. `lookupVar` or `fullSearchVar` in parent domain
+3. Fetch data from parent domain
+4. Return with note "Data retrieved from parent province domain"
 
 ### Fix #6: Expanded Ranking Synonyms
 
-**Problem:** `get_ranking` gagal untuk "harapan hidup", "PDRB", "pendidikan" karena tidak ada synonym mapping.
+**Problem:** `get_ranking` fails for "life expectancy", "GDP", "education" because no synonym mapping exists.
 
 **Fix:** Expanded `RANKING_SYNONYMS`:
 ```
@@ -944,16 +944,16 @@ pendidikan: ["rata-rata lama sekolah", "harapan lama sekolah", "melek huruf"]
 penduduk: ["jumlah penduduk", "populasi"]
 ```
 
-Juga expanded `KEYWORD_SUBJECTS` dengan pdrb→[52], harapan→[26,30], pendidikan→[26,28].
+Also expanded `KEYWORD_SUBJECTS` with pdrb→[52], life expectancy→[26,30], education→[26,28].
 
 ### Fix #7: Prefer Annual Over Semester
 
-**Problem:** Kemiskinan BPS dirilis per semester (Maret & September). `get_trend` bisa ambil semester random.
+**Problem:** BPS poverty data is released per semester (March & September). `get_trend` could take a random semester.
 
-**Fix:** Saat mapping year→period, prefer period yang label-nya exact match tahun (misal "2023") over yang mengandung tahun (misal "September 2023"). Jika sudah ada annual match, jangan overwrite dengan semester.
+**Fix:** When mapping year→period, prefer a period whose label exactly matches the year (e.g. "2023") over one that contains the year (e.g. "September 2023"). If an annual match already exists, do not overwrite with semester.
 
 ### Fix #8: compare_data Limitation Documented
 
-**Problem:** User minta "bandingkan kemiskinan Jatim vs Jabar 2020 dan 2024" tapi tool hanya support 1 tahun.
+**Problem:** User asks "compare poverty East Java vs West Java 2020 and 2024" but tool only supports 1 year.
 
-**Fix:** Tambah note di tool description: "hanya mendukung perbandingan untuk 1 tahun. Untuk perbandingan multi-tahun, gunakan get_trend per wilayah."
+**Fix:** Added note in tool description: "only supports comparison for 1 year. For multi-year comparison, use get_trend per region."
